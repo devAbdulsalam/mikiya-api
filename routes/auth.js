@@ -23,6 +23,11 @@ import {
 	validatePasswordStrength,
 } from '../utils/helpers.js';
 import { generateUserId } from '../utils/generateId.js';
+import { hash, verifyHash } from '../utils/passwordUtils.js';
+import {
+	createAccessToken,
+	createRefreshToken,
+} from '../utils/createTokens.js';
 
 const router = express.Router();
 
@@ -113,34 +118,30 @@ router.post('/login', validate(loginValidation), async (req, res) => {
 				suspensionReason: user.suspensionReason,
 			});
 		}
+		// const newPassword = await hash(password);
+		// // console.log('newPassword', newPassword);
+		// user.password = newPassword;
+		// user.lastPasswordChange = new Date();
+		// await user.save();
 
 		// Check if account is locked
-		// if (user.isLocked()) {
-		// 	return res.status(423).json({
-		// 		success: false,
-		// 		message: 'Account is locked. Try again later.',
-		// 		lockUntil: user.lockUntil,
-		// 	});
-		// }
-		console.log(user);
-		console.log(password);
-		await user.resetLoginAttempts();
+		if (user.isLocked()) {
+			return res.status(423).json({
+				success: false,
+				message: 'Account is locked. Try again later.',
+				lockUntil: user.lockUntil,
+			});
+		}
+
+		// console.log('password', user.password);
 
 		// Verify password
-		const isPasswordValid = await user.comparePassword(password);
-
-		console.log('isPasswordValid:', isPasswordValid);
-		// const match = await bcrypt.compare( user.password, password);
-		// if (!match) {
-		// 	return res.status(401).json({
-		// 		success: false,
-		// 		 message: 'Invalid email or password.',
-		// 	});
-		// }
+		const isPasswordValid = await await bcrypt.compare(password, user.password);
+		// const isPasswordValid = await await bcrypt.compare(password, newPassword);
 
 		if (!isPasswordValid) {
 			// Increment login attempts
-			// await user.incrementLoginAttempts();
+			await user.incrementLoginAttempts();
 
 			return res.status(401).json({
 				success: false,
@@ -156,37 +157,40 @@ router.post('/login', validate(loginValidation), async (req, res) => {
 		await user.save();
 
 		// Generate token
-		const token = jwt.sign(
-			{
-				id: user._id,
-				role: user.role,
-				username: user.username,
-				email: user.email,
-			},
-			process.env.JWT_SECRET,
-			{ expiresIn: process.env.JWT_EXPIRE }
-		);
+		const accessToken = await createAccessToken(user);
+		// Generate token
+		const refreshToken = await createRefreshToken(user);
 
 		// Remove sensitive data
 		user.password = undefined;
 		user.loginAttempts = undefined;
 		user.lockUntil = undefined;
 
-		res.json({
-			success: true,
-			message: 'Login successful',
-			token,
-			user: {
-				id: user._id,
-				userId: user.userId,
-				username: user.username,
-				email: user.email,
-				role: user.role,
-				outletId: user.outletId,
-				profile: user.profile,
-				settings: user.settings,
-			},
-		});
+		const options = {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+		};
+
+		return res
+			.status(200)
+			.cookie('accessToken', accessToken, options) // set the access token in the cookie
+			.cookie('refreshToken', refreshToken, options)
+			.json({
+				accessToken,
+				refreshToken,
+				success: true,
+				message: 'Login successful',
+				user: {
+					id: user._id,
+					userId: user.userId,
+					username: user.username,
+					email: user.email,
+					role: user.role,
+					outletId: user.outletId,
+					profile: user.profile,
+					settings: user.settings,
+				},
+			});
 	} catch (error) {
 		console.error('Login Error:', error);
 		res.status(500).json({
@@ -395,6 +399,26 @@ router.get('/profile', auth, async (req, res) => {
 	}
 });
 
+router.post('/refresh-token', auth, async (req, res, next) => {
+	try {
+		const { refreshToken } = req.body;
+		if (!refreshToken) throw { message: 'refresh Token error' };
+		const decode = verify(refreshToken, process.env.REFRESH_SECRET);
+		const user = await User.findById(decode._id);
+		if (!user) throw { message: 'User not found' };
+
+		// Generate new tokens
+		const token = createAccessToken(user);
+		const refToken = createRefreshToken(user);
+
+		res.status(200).send({
+			token,
+			refreshToken: refToken,
+		});
+	} catch (error) {
+		next(error);
+	}
+});
 // Update user profile
 router.put('/profile', auth, async (req, res) => {
 	try {

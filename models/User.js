@@ -83,21 +83,6 @@ const userSchema = new mongoose.Schema({
 	},
 });
 
-// Hash password before saving
-// Update timestamp before saving
-userSchema.pre('save', async function () {
-	if (this.isModified('password')) {
-		this.password = await bcrypt.hash(this.password, 12);
-		this.lastPasswordChange = new Date();
-	}
-	this.updatedAt = new Date();
-});
-
-
-// Compare password method
-userSchema.methods.comparePassword = async function (candidatePassword) {
-	return await bcrypt.compare(candidatePassword, this.password);
-};
 
 // Generate password reset token
 userSchema.methods.createPasswordResetToken = function () {

@@ -20,7 +20,7 @@ import customerRoutes from './routes/customer.js';
 import transactionRoutes from './routes/transaction.js';
 import invoiceRoutes from './routes/invoice.js';
 import productRoutes from './routes/product.js';
-// import dashboardRoutes from './routes/dashboard.js';
+import dashboardRoutes from './routes/dashboard.js';
 // import foundationRoutes from './routes/foundation/index.js';
 // import reportRoutes from './routes/report.js';
 
@@ -73,12 +73,12 @@ app.use((req, res, next) => {
 
 // Routes
 app.use('/api/auth', authRoutes);
+app.use('/api/dashboard', dashboardRoutes);
 app.use('/api/outlets', outletRoutes);
 app.use('/api/customers', customerRoutes);
 app.use('/api/transactions', transactionRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/products', productRoutes);
-// app.use('/api/dashboard', dashboardRoutes);
 // app.use('/api/foundation', foundationRoutes);
 // app.use('/api/reports', reportRoutes);
 
