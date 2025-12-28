@@ -29,10 +29,18 @@ const userSchema = new mongoose.Schema({
 		enum: ['admin', 'manager', 'staff'],
 		default: 'staff',
 	},
-	outletId: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: 'Outlet',
-	},
+	assignedBusinesses: [
+		{
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'Business',
+		},
+	],
+	assignedOutlets: [
+		{
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'Outlet',
+		},
+	],
 	isActive: {
 		type: Boolean,
 		default: true,

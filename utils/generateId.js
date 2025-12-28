@@ -6,6 +6,11 @@ export const generateUserId = () => {
 	return `USER-${timestamp.slice(-6)}-${random.slice(0, 4)}`.toUpperCase();
 };
 
+export const generateBusinessId = () => {
+	const timestamp = Date.now().toString();
+	const random = crypto.randomBytes(3).toString('hex');
+	return `BUS-${timestamp.slice(-6)}-${random.slice(0, 3)}`.toUpperCase();
+};
 export const generateOutletId = () => {
 	const timestamp = Date.now().toString();
 	const random = crypto.randomBytes(3).toString('hex');

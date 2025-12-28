@@ -48,15 +48,19 @@ export const getMikiyaPlasticDashboard = async (req, res) => {
 			{ name: 'Wholesale Center', sales: 78000 },
 		];
 
+		console.log('Dashboard data fetched successfully.');
+		console.log('Outstanding debt:', outStandingDebt[0]?.total);
+		console.log('Total sales:', totalSales[0]?.total);
+
 		const dashboardData = {
 			totalSales: totalSales[0]?.total || 20000,
 			totalCustomers,
 			totalProducts,
 			totalOutlets,
 			transactions,
+			totalOutStandingDebt: outStandingDebt[0]?.total || 5000,
 			outletPerformance,
 			salesTrends,
-			outStandingDebt: outStandingDebt[0]?.total || 5000,
 		};
 
 		res.status(200).json(dashboardData);

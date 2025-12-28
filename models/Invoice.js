@@ -6,6 +6,11 @@ const invoiceSchema = new mongoose.Schema({
 		required: true,
 		unique: true,
 	},
+	business: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'Business',
+		required: true,
+	},
 	transactionId: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: 'Transaction',
@@ -28,9 +33,11 @@ const invoiceSchema = new mongoose.Schema({
 	dueDate: Date,
 	items: [
 		{
+			productId: mongoose.Types.ObjectId,
+			productName: String,
+			price: Number,
 			description: String,
 			quantity: Number,
-			unitPrice: Number,
 			total: Number,
 		},
 	],
@@ -75,7 +82,6 @@ invoiceSchema.pre('save', async function () {
 		dueDate.setDate(dueDate.getDate() + 30);
 		this.dueDate = dueDate;
 	}
-
 });
 
 const Invoice = mongoose.model('Invoice', invoiceSchema);

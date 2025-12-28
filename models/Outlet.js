@@ -11,6 +11,17 @@ const outletSchema = new mongoose.Schema({
 		required: true,
 		unique: true,
 	},
+	businessId: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'Business',
+		required: true,
+	},
+	managers: [
+		{
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'User',
+		},
+	],
 	type: {
 		type: String,
 		enum: ['wholesale', 'retail', 'general_supply'],
@@ -18,11 +29,7 @@ const outletSchema = new mongoose.Schema({
 		required: true,
 	},
 	address: String,
-	manager: {
-		name: String,
-		email: String,
-		contact: String,
-	},
+
 	contact: {
 		phone: String,
 		email: String,
@@ -71,7 +78,7 @@ const outletSchema = new mongoose.Schema({
 	},
 });
 
-outletSchema.pre('save', async function ()  {
+outletSchema.pre('save', async function () {
 	this.updatedAt = Date.now();
 });
 

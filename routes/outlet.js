@@ -42,6 +42,7 @@ router.post('/', auth, isAdmin, async (req, res) => {
 			...req.body,
 			outletId: generateOutletId(),
 			createdBy: req.user.id,
+			businessId,
 		};
 
 		const outlet = new Outlet(outletData);

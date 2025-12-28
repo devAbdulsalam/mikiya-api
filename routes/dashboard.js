@@ -4,6 +4,6 @@ import { getMikiyaPlasticDashboard } from '../controllers/dashboard.js';
 
 const router = express.Router();
 
-router.get('/mikiya-plastic', auth, getMikiyaPlasticDashboard);
+router.get('/mikiya-plastic',  getMikiyaPlasticDashboard);
 
 export default router;
