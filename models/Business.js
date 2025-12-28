@@ -1,0 +1,80 @@
+import mongoose from 'mongoose';
+
+const businessSchema = new mongoose.Schema({
+    name: {
+        type: String,
+        required: true,
+        trim: true,
+    },
+    BusinessId: {
+        type: String,
+        required: true,
+        unique: true,
+    },
+    type: {
+        type: String,
+        enum: ['wholesale', 'retail', 'general_supply'],
+        default: 'wholesale',
+        required: true,
+    },
+    address: String,
+    manager: {
+        name: String,
+        contact: String,
+        email: String,
+    },
+    contact: {
+        phone: String,
+        email: String,
+        whatsapp: String,
+    },
+    totalSales: {
+        type: Number,
+        default: 0,
+    },
+    totalProducts: {
+        type: Number,
+        default: 0,
+    },
+    financial: {
+        totalRevenue: { type: Number, default: 0 },
+        totalExpenses: { type: Number, default: 0 },
+        currentBalance: { type: Number, default: 0 },
+    },
+    settings: {
+        currency: { type: String, default: 'NGN' },
+        taxRate: { type: Number, default: 7.5 },
+        businessHours: {
+            open: { type: String, default: '08:00' },
+            close: { type: String, default: '18:00' },
+            days: {
+                type: [String],
+                default: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'],
+            },
+        },
+    },
+    isActive: {
+        type: Boolean,
+        default: true,
+    },
+    createdBy: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'User',
+    },
+    createdAt: {
+        type: Date,
+        default: Date.now,
+    },
+    updatedAt: {
+        type: Date,
+        default: Date.now,
+    },
+});
+
+businessSchema.pre('save', async function () {
+    this.updatedAt = Date.now();
+});
+
+const Business = mongoose.model('Business', businessSchema);
+
+export default Business;
