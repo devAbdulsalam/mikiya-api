@@ -1,10 +1,18 @@
 import mongoose from 'mongoose';
 
 const businessSchema = new mongoose.Schema({
+	owner: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'User',
+		required: true,
+	},
 	name: {
 		type: String,
 		required: true,
 		trim: true,
+	},
+	description: {
+		type: String,
 	},
 	businessId: {
 		type: String,
@@ -22,6 +30,10 @@ const businessSchema = new mongoose.Schema({
 		phone: String,
 		email: String,
 		whatsapp: String,
+	},
+	totalOutlets: {
+		type: Number,
+		default: 0,
 	},
 	totalSales: {
 		type: Number,
@@ -55,7 +67,7 @@ const businessSchema = new mongoose.Schema({
 });
 
 businessSchema.pre('save', async function () {
-    this.updatedAt = Date.now();
+	this.updatedAt = Date.now();
 });
 
 const Business = mongoose.model('Business', businessSchema);

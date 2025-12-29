@@ -29,6 +29,7 @@ const outletSchema = new mongoose.Schema({
 		required: true,
 	},
 	address: String,
+	description: String,
 
 	contact: {
 		phone: String,

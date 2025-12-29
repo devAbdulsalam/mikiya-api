@@ -15,6 +15,10 @@ const customerSchema = new mongoose.Schema({
 		type: mongoose.Schema.Types.ObjectId,
 		ref: 'Outlet',
 	},
+	businessId: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'Business',
+	},
 	type: {
 		type: String,
 		enum: ['wholesale', 'retail', 'corporate', 'individual'],

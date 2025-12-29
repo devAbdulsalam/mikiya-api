@@ -2,239 +2,27 @@ import express from 'express';
 import User from '../models/User.js';
 import { auth, isAdmin } from '../middlewares/auth.js';
 import {
-	sendWelcomeEmail,
-	sendAccountSuspendedEmail,
-} from '../utils/sendEmail.js';
-import {
-	generateTemporaryPassword,
-	validatePasswordStrength,
-} from '../utils/helpers.js';
-import { generateUserId } from '../utils/generateId.js';
+	assignManager,
+	getUsers,
+	createUser,
+	getUser,
+	getUserStats,
+} from '../controllers/user.js';
 
 const router = express.Router();
+// Assign manager to business/outlet (Admin only)
+router.post('/assign-manager', auth, isAdmin, assignManager);
 
 // Get all users with filters (Admin only)
-router.get('/', auth, isAdmin, async (req, res) => {
-	try {
-		const {
-			role,
-			outletId,
-			isActive,
-			isSuspended,
-			search,
-			page = 1,
-			limit = 20,
-		} = req.query;
-
-		const filter = {};
-		const pageNum = parseInt(page);
-		const limitNum = parseInt(limit);
-		const skip = (pageNum - 1) * limitNum;
-
-		if (role) filter.role = role;
-		if (outletId) filter.outletId = outletId;
-		if (isActive !== undefined) filter.isActive = isActive === 'true';
-		if (isSuspended !== undefined) filter.isSuspended = isSuspended === 'true';
-
-		if (search) {
-			filter.$or = [
-				{ username: { $regex: search, $options: 'i' } },
-				{ email: { $regex: search, $options: 'i' } },
-				{ 'profile.firstName': { $regex: search, $options: 'i' } },
-				{ 'profile.lastName': { $regex: search, $options: 'i' } },
-			];
-		}
-
-		const [users, total] = await Promise.all([
-			User.find(filter)
-				.populate('outletId', 'name outletId')
-				.populate('createdBy', 'username')
-				.populate('suspendedBy', 'username')
-				.select('-password -loginAttempts -lockUntil')
-				.sort({ createdAt: -1 })
-				.skip(skip)
-				.limit(limitNum),
-			User.countDocuments(filter),
-		]);
-
-		res.json({
-			success: true,
-			count: users.length,
-			total,
-			pages: Math.ceil(total / limitNum),
-			currentPage: pageNum,
-			users,
-		});
-	} catch (error) {
-		console.error('Get Users Error:', error);
-		res.status(500).json({
-			success: false,
-			message: 'Failed to fetch users',
-			error: error.message,
-		});
-	}
-});
+router.get('/', auth, isAdmin, getUsers);
 
 // Create user (Admin only)
-router.post('/', auth, isAdmin, async (req, res) => {
-	try {
-		const { username, email, role, outletId, profile } = req.body;
-
-		// Check if user exists
-		const existingUser = await User.findOne({
-			$or: [{ email }, { username }],
-		});
-
-		if (existingUser) {
-			return res.status(400).json({
-				success: false,
-				message: 'User already exists',
-			});
-		}
-
-		// Generate temporary password
-		const temporaryPassword = generateTemporaryPassword(10);
-
-		// Create user
-		const user = new User({
-			username,
-			email,
-			password: temporaryPassword,
-			role: role || 'staff',
-			outletId,
-			profile,
-			createdBy: req.user._id,
-		});
-
-		await user.save();
-
-		// Send welcome email
-		if (email) {
-			await sendWelcomeEmail(email, username, temporaryPassword);
-		}
-
-		// Remove password from response
-		const userResponse = await User.findById(user._id)
-			.select('-password -loginAttempts -lockUntil')
-			.populate('outletId', 'name outletId');
-
-		res.status(201).json({
-			success: true,
-			message: 'User created successfully',
-			user: userResponse,
-			temporaryPassword, // Only admin can see this
-		});
-	} catch (error) {
-		console.error('Create User Error:', error);
-		res.status(500).json({
-			success: false,
-			message: 'Failed to create user',
-			error: error.message,
-		});
-	}
-});
+router.post('/', auth, isAdmin, createUser);
 
 // Update user (Admin only)
-router.put('/:id', auth, isAdmin, async (req, res) => {
-	try {
-		const { role, outletId, isActive, profile, settings } = req.body;
-		const userId = req.params.id;
-
-		// Cannot update yourself
-		if (userId === req.user.id) {
-			return res.status(400).json({
-				success: false,
-				message: 'You cannot update your own account via this endpoint',
-			});
-		}
-
-		const updates = {};
-		if (role) updates.role = role;
-		if (outletId !== undefined) updates.outletId = outletId;
-		if (isActive !== undefined) updates.isActive = isActive;
-		if (profile) updates.profile = profile;
-		if (settings) updates.settings = settings;
-
-		const user = await User.findByIdAndUpdate(
-			userId,
-			{ $set: updates },
-			{ new: true, runValidators: true }
-		)
-			.select('-password -loginAttempts -lockUntil')
-			.populate('outletId', 'name outletId');
-
-		if (!user) {
-			return res.status(404).json({
-				success: false,
-				message: 'User not found',
-			});
-		}
-
-		res.json({
-			success: true,
-			message: 'User updated successfully',
-			user,
-		});
-	} catch (error) {
-		console.error('Update User Error:', error);
-		res.status(500).json({
-			success: false,
-			message: 'Failed to update user',
-			error: error.message,
-		});
-	}
-});
+router.put('/:id', auth, isAdmin, getUser);
 
 // Get user statistics (Admin only)
-router.get('/stats', auth, isAdmin, async (req, res) => {
-	try {
-		const stats = await User.aggregate([
-			{
-				$group: {
-					_id: '$role',
-					count: { $sum: 1 },
-					active: {
-						$sum: {
-							$cond: [{ $eq: ['$isActive', true] }, 1, 0],
-						},
-					},
-					suspended: {
-						$sum: {
-							$cond: [{ $eq: ['$isSuspended', true] }, 1, 0],
-						},
-					},
-				},
-			},
-		]);
-
-		const total = await User.countDocuments();
-		const active = await User.countDocuments({
-			isActive: true,
-			isSuspended: false,
-		});
-		const suspended = await User.countDocuments({ isSuspended: true });
-		const recent = await User.countDocuments({
-			createdAt: { $gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
-		});
-
-		res.json({
-			success: true,
-			stats: {
-				total,
-				active,
-				suspended,
-				recent,
-				byRole: stats,
-			},
-		});
-	} catch (error) {
-		console.error('Get User Stats Error:', error);
-		res.status(500).json({
-			success: false,
-			message: 'Failed to fetch user statistics',
-			error: error.message,
-		});
-	}
-});
+router.get('/stats', auth, isAdmin, getUserStats);
 
 export default router;
