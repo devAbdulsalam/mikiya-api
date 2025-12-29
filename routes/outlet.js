@@ -63,6 +63,33 @@ router.post('/', auth, isAdmin, async (req, res) => {
 	}
 });
 
-// ... other outlet routes
+router.get('/:id', auth, async (req, res) => {
+	try {
+		const { id } = req.params;
+		const outlet = await Outlet.findById(id);
+
+		const outletProducts = [];
+		const outletTransactions = [];
+		const lowStockProducts = [];
+
+		res.status(201).json({
+			success: true,
+			message: 'Outlet fetched successfully',
+			outlet: {
+				...outlet._doc,
+				outletProducts,
+				outletTransactions,
+				lowStockProducts,
+			},
+		});
+	} catch (error) {
+		console.error('Create Outlet Error:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to fetch outlet',
+			error: error.message,
+		});
+	}
+});
 
 export default router;

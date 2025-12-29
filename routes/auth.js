@@ -403,13 +403,20 @@ router.post('/refresh-token', auth, async (req, res, next) => {
 	try {
 		const { refreshToken } = req.body;
 		if (!refreshToken) throw { message: 'refresh Token error' };
-		const decode = verify(refreshToken, process.env.REFRESH_SECRET);
-		const user = await User.findById(decode._id);
-		if (!user) throw { message: 'User not found' };
+		const decode = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
+		console.log('decode', decode);
+		const user = await User.findById(decode.id);
+		console.log('user', user);
+		if (!user) {
+			return res.status(404).send({
+				success: false,
+				message: 'User not found',
+			});
+		}
 
 		// Generate new tokens
-		const token = createAccessToken(user);
-		const refToken = createRefreshToken(user);
+		const token = createAccessToken(decode);
+		const refToken = createRefreshToken(decode);
 
 		res.status(200).send({
 			token,
