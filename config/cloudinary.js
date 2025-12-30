@@ -100,4 +100,55 @@ export const getPublicIdFromUrl = (url) => {
 	return match ? match[1] : null;
 };
 
+export const uploadAndExtractImageUrls = async (files) => {
+	let bannerUrl = null;
+	let imageUrls = [];
+
+	// Upload Banner (Single File)
+	if (files?.banner && files.banner[0]) {
+		const result = await cloudinary.uploader.upload_stream(
+			{ folder: "products/banner" },
+			(err, res) => { if (err) console.log(err) }
+		);
+	}
+
+	// Instead → convert to a buffer upload
+	if (files?.banner && files.banner[0]) {
+		bannerUrl = await uploadBufferToCloudinary(
+			files.banner[0].buffer,
+			`products/banner-${Date.now()}`
+		);
+	}
+
+	// Upload Images (Array)
+	if (files?.images && files.images.length > 0) {
+		for (const img of files.images) {
+			const url = await uploadBufferToCloudinary(
+				img.buffer,
+				`products/images-${Date.now()}`
+			);
+			if (url) imageUrls.push(url);
+		}
+	}
+
+	return {
+		banner: bannerUrl,
+		images: imageUrls
+	};
+};
+
+// Helper fn to upload buffer
+const uploadBufferToCloudinary = (buffer, publicId) => {
+	return new Promise((resolve, reject) => {
+		const stream = cloudinary.uploader.upload_stream(
+			{ public_id: publicId, folder: "products" },
+			(err, result) => {
+				if (err) reject(err);
+				else resolve(result.secure_url);
+			}
+		);
+		stream.end(buffer);
+	});
+};
+
 export default cloudinary;
