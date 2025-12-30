@@ -25,17 +25,11 @@ const productSchema = new mongoose.Schema(
 		// Visual Content
 		banner: {
 			type: String,
-			default:
-				'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=1200&h=600&fit=crop&q=90',
+			default: 'https://via.placeholder.com/800x600',
 		},
 		images: [
 			{
 				type: String,
-				default: [
-					'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=800&h=600&fit=crop&q=90',
-					'https://images.unsplash.com/photo-1466611653911-95081537e5b7?w=800&h=600&fit=crop&q=90',
-					'https://images.unsplash.com/photo-1591604466107-ec97de577aff?w=800&h=600&fit=crop&q=90',
-				],
 			},
 		],
 		colors: [
@@ -149,16 +143,15 @@ const productSchema = new mongoose.Schema(
 			min: 0,
 		},
 
-		// Outlet Information
-		outlet: {
+		// Business Information
+		businessId: {
 			type: String,
 			required: true,
-			ref: 'Outlet',
+			ref: 'Business',
 		},
-		outletObject: {
-			type: mongoose.Schema.Types.ObjectId,
+		outletId: {
+			type: String,
 			ref: 'Outlet',
-			required: true,
 		},
 
 		// Multi-outlet Support
@@ -169,7 +162,6 @@ const productSchema = new mongoose.Schema(
 					ref: 'Outlet',
 					required: true,
 				},
-				outletName: String,
 				stock: {
 					type: Number,
 					default: 0,
@@ -186,7 +178,6 @@ const productSchema = new mongoose.Schema(
 					type: Number,
 					default: 10,
 				},
-				location: String,
 				isAvailable: {
 					type: Boolean,
 					default: true,
@@ -344,7 +335,6 @@ productSchema.pre('save', async function () {
 	if (this.createdAt > thirtyDaysAgo) {
 		this.isNewArrival = true;
 	}
-
 });
 
 // Indexes for better query performance

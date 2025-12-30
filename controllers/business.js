@@ -1,4 +1,5 @@
 import Business from '../models/Business.js';
+import Outlet from '../models/Outlet.js';
 import { generateBusinessId } from '../utils/generateId.js';
 
 export const createBusiness = async (req, res) => {
@@ -56,10 +57,52 @@ export const getBusinesses = async (req, res) => {
 		});
 	}
 };
+export const getBusinessesAndOutlets = async (req, res) => {
+	try {
+		const filter = {};
+
+		// Managers can only see their Business
+		if (req.user.role === 'manager' && req.user.businessId) {
+			filter._id = req.user.BusinessId;
+		}
+		const businesses = await Business.find(filter)
+			.populate('managers', 'username email phone')
+			.sort({ createdAt: -1 });
+		// Build clean response
+		const formatted = await Promise.all(
+			businesses.map(async (business) => {
+				const outlets = await Outlet.find({ businessId: business._id }).select(
+					'_id name address outletId'
+				);
+
+				return {
+					_id: business._id,
+					businessId: business.businessId,
+					name: business.name,
+					address: business.address,
+					phone: business.phone,
+					managers: business.managers, // already populated (username, email, phone)
+					outlets,
+				};
+			})
+		);
+
+		return res.status(200).json({
+			success: true,
+			total: formatted.length,
+			data: formatted,
+		});
+	} catch (error) {
+		return res.status(500).json({
+			success: false,
+			message: 'Server error',
+			error: error.message,
+		});
+	}
+};
 
 export const getBusinessById = async (req, res) => {
 	try {
-		
 		const business = await Business.findById(req.params.id)
 			.populate('createdBy', 'username email')
 			.populate('owner', 'username email')

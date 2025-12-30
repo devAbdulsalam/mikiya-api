@@ -179,7 +179,7 @@ router.get('/', async (req, res) => {
 
 		// Get products with pagination and sorting
 		const products = await Product.find(filter)
-			.populate('outletObject', 'name outletId type')
+			.populate('outletId', 'name outletId type')
 			.populate(
 				'createdBy',
 				'username email profile.firstName profile.lastName'
@@ -214,7 +214,7 @@ router.get('/', async (req, res) => {
 			sold: product.sold,
 			reviews: product.reviews,
 			outlet: product.outlet,
-			outletDetails: product.outletObject,
+			outletDetails: product.outletId,
 			status: product.status,
 			isFeatured: product.isFeatured,
 			isBestSeller: product.isBestSeller,
@@ -272,7 +272,7 @@ router.get('/:id', async (req, res) => {
 		let product;
 		if (mongoose.Types.ObjectId.isValid(id)) {
 			product = await Product.findById(id)
-				.populate('outletObject', 'name outletId type address contact')
+				.populate('outletId', 'name outletId type address contact')
 				.populate(
 					'createdBy',
 					'username email profile.firstName profile.lastName'
@@ -281,7 +281,7 @@ router.get('/:id', async (req, res) => {
 		} else {
 			// Try to find by productId
 			product = await Product.findOne({ productId: id })
-				.populate('outletObject', 'name outletId type address contact')
+				.populate('outletId', 'name outletId type address contact')
 				.populate(
 					'createdBy',
 					'username email profile.firstName profile.lastName'
@@ -331,7 +331,7 @@ router.get('/:id', async (req, res) => {
 			sold: product.sold,
 			reviews: product.reviews,
 			outlet: product.outlet,
-			outletDetails: product.outletObject,
+			outletDetails: product.outletId,
 			outlets: product.outlets,
 			supplier: product.supplier,
 			variants: product.variants,
@@ -472,7 +472,7 @@ router.patch(
 			if (updateData.outlet) {
 				const outlet = await Outlet.findOne({ outletId: updateData.outlet });
 				if (outlet) {
-					updateData.outletObject = outlet._id;
+					updateData.outletId = outlet._id;
 
 					// Update or add to outlets array
 					const outletIndex = product.outlets.findIndex(
@@ -525,7 +525,7 @@ router.patch(
 				{ $set: updateData },
 				{ new: true, runValidators: true }
 			)
-				.populate('outletObject', 'name outletId type')
+				.populate('outletId', 'name outletId type')
 				.populate('updatedBy', 'username email');
 
 			// Delete old images from Cloudinary after successful update
@@ -609,18 +609,47 @@ router.post(
 			const productData = { ...req.body };
 			const files = req.files || {};
 
+			let { businessId, outletId } = productData;
+
+			// 1️⃣ If businessId is not provided, outletId must be provided
+			if (!businessId && !outletId) {
+				return res.status(400).json({
+					success: false,
+					message: 'Either businessId or outletId is required',
+				});
+			}
+
+			let outlet = null;
+
+			// 2️⃣ If outletId exists, fetch outlet and validate existence
+			if (outletId) {
+				outlet = await Outlet.findOne({ outletId });
+
+				if (!outlet) {
+					return res.status(404).json({
+						success: false,
+						message: 'Outlet not found',
+					});
+				}
+
+				// 3️⃣ If businessId was NOT provided, extract it from outlet
+				if (!businessId) businessId = outlet.businessId.toString();
+
+				// 4️⃣ If BOTH were provided, validate the outlet belongs to that business
+				if (
+					businessId &&
+					businessId.toString() !== outlet.businessId.toString()
+				) {
+					return res.status(400).json({
+						success: false,
+						message: 'Provided outlet does not belong to the given businessId',
+					});
+				}
+			}
+
 			// Generate product ID and SKU
 			const productId = generateProductId();
 			const sku = generateSku(productData.category, productData.brand);
-
-			// Get outlet information
-			const outlet = await Outlet.findOne({ outletId: productData.outlet });
-			if (!outlet) {
-				return res.status(404).json({
-					success: false,
-					message: 'Outlet not found',
-				});
-			}
 
 			// Extract image URLs
 			const images = extractImageUrls(req);
@@ -641,18 +670,14 @@ router.post(
 
 			// Prepare product data
 			const newProductData = {
+				businessId,
+				outletId: outlet ? outlet._id : null,
 				productId,
 				sku,
 				title: productData.title,
 				description: productData.description,
-				banner:
-					productData.banner ||
-					'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=1200&h=600&fit=crop&q=90',
-				images: productData.images || [
-					'https://images.unsplash.com/photo-1509391366360-2e959784a276?w=800&h=600&fit=crop&q=90',
-					'https://images.unsplash.com/photo-1466611653911-95081537e5b7?w=800&h=600&fit=crop&q=90',
-					'https://images.unsplash.com/photo-1591604466107-ec97de577aff?w=800&h=600&fit=crop&q=90',
-				],
+				banner: productData.banner || 'https://via.placeholder.com/800x600',
+				images: productData.images || ['https://via.placeholder.com/800x600'],
 				colors: productData.colors || [],
 				price: parseFloat(productData.price),
 				discount: parseFloat(productData.discount) || 0,
@@ -666,12 +691,9 @@ router.post(
 				rating: parseFloat(productData.rating) || 0,
 				sold: parseInt(productData.sold) || 0,
 				reviews: parseInt(productData.reviews) || 0,
-				outlet: productData.outlet,
-				outletObject: outlet._id,
 				outlets: [
 					{
 						outletId: outlet._id,
-						outletName: outlet.name,
 						stock: parseInt(productData.stock) || 0,
 						price: parseFloat(productData.price),
 						discount: parseFloat(productData.discount) || 0,
@@ -706,7 +728,7 @@ router.post(
 
 			// Populate the response
 			const populatedProduct = await Product.findById(product._id)
-				.populate('outletObject', 'name outletId type')
+				.populate('outletId', 'name outletId type')
 				.populate(
 					'createdBy',
 					'username email profile.firstName profile.lastName'
@@ -1019,7 +1041,7 @@ router.get('/featured/all', async (req, res) => {
 			status: 'active',
 		})
 			.limit(parseInt(limit))
-			.populate('outletObject', 'name outletId')
+			.populate('outletId', 'name outletId')
 			.select('title price discount banner images rating sold stock');
 
 		res.json({
@@ -1047,7 +1069,7 @@ router.get('/bestsellers/all', async (req, res) => {
 		})
 			.sort({ sold: -1 })
 			.limit(parseInt(limit))
-			.populate('outletObject', 'name outletId')
+			.populate('outletId', 'name outletId')
 			.select(
 				'title price discount banner images rating sold stock isBestSeller'
 			);
@@ -1080,7 +1102,7 @@ router.get('/new-arrivals/all', async (req, res) => {
 		})
 			.sort({ createdAt: -1 })
 			.limit(parseInt(limit))
-			.populate('outletObject', 'name outletId')
+			.populate('outletId', 'name outletId')
 			.select(
 				'title price discount banner images rating sold stock isNewArrival'
 			);
@@ -1111,7 +1133,7 @@ router.get('/on-sale/all', async (req, res) => {
 		})
 			.sort({ discount: -1 })
 			.limit(parseInt(limit))
-			.populate('outletObject', 'name outletId')
+			.populate('outletId', 'name outletId')
 			.select(
 				'title price discount discountedPrice banner images rating sold stock savingPercentage'
 			);
@@ -1159,7 +1181,7 @@ router.get('/outlet/:outletId', async (req, res) => {
 			Product.find(filter)
 				.skip(skip)
 				.limit(limitNum)
-				.populate('outletObject', 'name outletId')
+				.populate('outletId', 'name outletId')
 				.select('title price discount banner images rating sold stock'),
 			Product.countDocuments(filter),
 		]);

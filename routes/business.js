@@ -7,12 +7,15 @@ import {
 	getBusinessById,
 	updateBusiness,
 	deleteBusiness,
+	getBusinessesAndOutlets,
 } from '../controllers/business.js';
 
 const router = express.Router();
 
 // Get all Businesss (Admin/Manager only)
 router.get('/', auth, isManagerOrAdmin, getBusinesses);
+
+router.get('/outlets', auth, isManagerOrAdmin, getBusinessesAndOutlets);
 
 // Create Business (Admin only)
 router.post('/', auth, isAdmin, createBusiness);
