@@ -1,34 +1,41 @@
 import multer from 'multer';
 import path from 'path';
 
-const storage = multer.diskStorage({
-	destination: function (req, file, cb) {
-		// This storage needs public/images folder in the root directory
-		// Else it will throw an error saying cannot find path public/images
-		cb(null, './public/uploads');
-	},
-	// Store file in a .png/.jpeg/.jpg format instead of binary
-	filename: function (req, file, cb) {
-		let fileExtension = '';
-		if (file.originalname.split('.').length > 1) {
-			fileExtension = file.originalname.substring(
-				file.originalname.lastIndexOf('.')
-			);
-		}
-		const filenameWithoutExtension = file.originalname
-			.toLowerCase()
-			.split(' ')
-			.join('-')
-			?.split('.')[0];
-		cb(
-			null,
-			filenameWithoutExtension +
-				Date.now() +
-				Math.ceil(Math.random() * 1e5) + // avoid rare name conflict
-				fileExtension
-		);
-	},
-});
+// const storage = multer.diskStorage({
+// 	destination: function (req, file, cb) {
+// 		// This storage needs public/images folder in the root directory
+// 		// Else it will throw an error saying cannot find path public/images
+// 		cb(null, './public/uploads');
+// 	},
+// 	// Store file in a .png/.jpeg/.jpg format instead of binary
+// 	filename: function (req, file, cb) {
+// 		let fileExtension = '';
+// 		if (file.originalname.split('.').length > 1) {
+// 			fileExtension = file.originalname.substring(
+// 				file.originalname.lastIndexOf('.')
+// 			);
+// 		}
+// 		const filenameWithoutExtension = file.originalname
+// 			.toLowerCase()
+// 			.split(' ')
+// 			.join('-')
+// 			?.split('.')[0];
+// 		cb(
+// 			null,
+// 			filenameWithoutExtension +
+// 				Date.now() +
+// 				Math.ceil(Math.random() * 1e5) + // avoid rare name conflict
+// 				fileExtension
+// 		);
+// 	},
+// });
+
+const storage = multer.memoryStorage();        // <-- REQUIRED to get file.buffer
+
+// export const upload = multer({
+//   storage,
+//   limits: { fileSize: 5 * 1024 * 1024 } // optional: 5MB max
+// });
 
 
 // File filter for images

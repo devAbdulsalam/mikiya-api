@@ -16,17 +16,13 @@ export const createProduct = async (req, res) => {
 		// Extract image URLs
 		const uploads = await uploadAndExtractImageUrls(req.files);
 
-		if (uploads.images > 0) {
+		if (uploads.images.length > 0) {
 			productData.images = uploads.images;
 		}
 		if (uploads.banner) {
 			productData.banner = uploads.banner;
 		}
 
-		return res.status(200).json({
-			success: true,
-			data: productData,
-		});
 		let { businessId, outletId } = productData;
 
 		// 1️⃣ If businessId is not provided, outletId must be provided

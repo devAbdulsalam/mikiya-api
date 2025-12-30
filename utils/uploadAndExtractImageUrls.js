@@ -6,40 +6,27 @@ export const uploadAndExtractImageUrls = async (files) => {
 
 	// Upload Banner (Single File)
 	if (files?.banner && files.banner[0]) {
-		const result = await cloudinary.uploader.upload_stream(
-			{ folder: 'products/banner' },
-			(err, res) => {
-				if (err) console.log(err);
-			}
-		);
-	}
-
-	// Instead → convert to a buffer upload
-	if (files?.banner && files.banner[0]) {
 		bannerUrl = await uploadBufferToCloudinary(
 			files.banner[0].buffer,
-			`products/banner-${Date.now()}`
+			`banner-${Date.now()}`
 		);
 	}
 
-	// Upload Images (Array)
-	if (files?.images && files.images.length > 0) {
+	// Upload Product Images (Array)
+	if (files?.images?.length > 0) {
 		for (const img of files.images) {
 			const url = await uploadBufferToCloudinary(
 				img.buffer,
-				`products/images-${Date.now()}`
+				`image-${Date.now()}`
 			);
 			if (url) imageUrls.push(url);
 		}
 	}
 
-	return {
-		banner: bannerUrl,
-		images: imageUrls,
-	};
+
+	return { banner: bannerUrl, images: imageUrls };
 };
 
-// Helper fn to upload buffer
 const uploadBufferToCloudinary = (buffer, publicId) => {
 	return new Promise((resolve, reject) => {
 		const stream = cloudinary.uploader.upload_stream(
@@ -49,7 +36,8 @@ const uploadBufferToCloudinary = (buffer, publicId) => {
 				else resolve(result.secure_url);
 			}
 		);
-		stream.end(buffer);
+
+		stream.end(buffer); // THIS writes the binary file → required
 	});
 };
 

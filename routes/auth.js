@@ -421,6 +421,16 @@ router.post('/refresh-token', auth, async (req, res, next) => {
 		res.status(200).send({
 			token,
 			refreshToken: refToken,
+			user: {
+				id: user._id,
+				userId: user.userId,
+				username: user.username,
+				email: user.email,
+				role: user.role,
+				outletId: user.outletId,
+				profile: user.profile,
+				settings: user.settings,
+			},
 		});
 	} catch (error) {
 		next(error);

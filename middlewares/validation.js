@@ -113,12 +113,28 @@ export const productValidation = [
 		.trim()
 		.isLength({ min: 2, max: 100 })
 		.withMessage('Category must be between 2 and 100 characters'),
-	body('outlet').trim().notEmpty().withMessage('Outlet is required'),
+	body('outletId').optional(),
+	// .trim().withMessage('Outlet Id is required'),
+	body('businessId').optional(),
+	// .trim()
+	// .withMessage('Business is required'),
+	// convert string → array if needed
 	body('features')
-		.optional()
+		.customSanitizer((val) => {
+			if (!val) return [];
+			if (typeof val === 'string') return JSON.parse(val);
+			return val;
+		})
 		.isArray()
 		.withMessage('Features must be an array'),
-	body('colors').optional().isArray().withMessage('Colors must be an array'),
+	body('colors')
+		.customSanitizer((val) => {
+			if (!val) return [];
+			if (typeof val === 'string') return JSON.parse(val);
+			return val;
+		})
+		.isArray()
+		.withMessage('Colors must be an array'),
 	body('rating')
 		.optional()
 		.isFloat({ min: 0, max: 5 })
@@ -173,11 +189,24 @@ export const updateProductValidation = [
 		.trim()
 		.isLength({ min: 2, max: 100 })
 		.withMessage('Category must be between 2 and 100 characters'),
+	// convert string → array if needed
 	body('features')
-		.optional()
+		.customSanitizer((val) => {
+			if (!val) return [];
+			if (typeof val === 'string') return JSON.parse(val);
+			return val;
+		})
 		.isArray()
 		.withMessage('Features must be an array'),
-	body('colors').optional().isArray().withMessage('Colors must be an array'),
+
+	body('colors')
+		.customSanitizer((val) => {
+			if (!val) return [];
+			if (typeof val === 'string') return JSON.parse(val);
+			return val;
+		})
+		.isArray()
+		.withMessage('Colors must be an array'),
 	body('rating')
 		.optional()
 		.isFloat({ min: 0, max: 5 })
