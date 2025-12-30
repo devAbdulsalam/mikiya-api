@@ -1,5 +1,6 @@
 import Outlet from '../models/Outlet.js';
 import Transaction from '../models/Transaction.js';
+import Product from '../models/Product.js';
 import { generateOutletId } from '../utils/generateId.js';
 
 export const createOutlet = async (req, res) => {
@@ -38,6 +39,7 @@ export const getOutlets = async (req, res) => {
 
 		const outlets = await Outlet.find(filter)
 			.populate('createdBy', 'username email')
+			.populate('managers', 'username email phone')
 			.sort({ createdAt: -1 });
 
 		res.json({
@@ -57,7 +59,10 @@ export const getOutlets = async (req, res) => {
 export const getOutletById = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const outlet = await Outlet.findById(id);
+		const outlet = await Outlet.findById(id).populate(
+			'managers',
+			'username email phone'
+		);
 		if (!outlet) {
 			return res.status(404).json({
 				success: false,
@@ -65,7 +70,7 @@ export const getOutletById = async (req, res) => {
 			});
 		}
 
-		const outletProducts = [];
+		const outletProducts = await Product.find({outletId : id});
 		const outletTransactions = [];
 		const lowStockProducts = [];
 
@@ -77,6 +82,9 @@ export const getOutletById = async (req, res) => {
 				outletProducts,
 				outletTransactions,
 				lowStockProducts,
+				totalProducts: outletProducts.length,
+				totalOrders: 0,
+				totalSales: 10,
 			},
 		});
 	} catch (error) {

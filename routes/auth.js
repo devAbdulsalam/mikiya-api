@@ -404,9 +404,9 @@ router.post('/refresh-token', auth, async (req, res, next) => {
 		const { refreshToken } = req.body;
 		if (!refreshToken) throw { message: 'refresh Token error' };
 		const decode = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
-		console.log('decode', decode);
+		// console.log('decode', decode);
 		const user = await User.findById(decode.id);
-		console.log('user', user);
+		// console.log('user', user);
 		if (!user) {
 			return res.status(404).send({
 				success: false,

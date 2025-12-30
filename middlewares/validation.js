@@ -93,7 +93,7 @@ export const productValidation = [
 		.withMessage('Title must be between 3 and 200 characters'),
 	body('description')
 		.trim()
-		.isLength({ min: 10, max: 2000 })
+		.isLength({ min: 5, max: 2000 })
 		.withMessage('Description must be between 10 and 2000 characters'),
 	body('price')
 		.isFloat({ min: 0 })
@@ -164,7 +164,7 @@ export const updateProductValidation = [
 	body('description')
 		.optional()
 		.trim()
-		.isLength({ min: 10, max: 2000 })
+		.isLength({ min: 5, max: 2000 })
 		.withMessage('Description must be between 10 and 2000 characters'),
 	body('price')
 		.optional()

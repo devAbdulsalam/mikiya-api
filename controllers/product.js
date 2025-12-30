@@ -37,7 +37,7 @@ export const createProduct = async (req, res) => {
 
 		// 2️⃣ If outletId exists, fetch outlet and validate existence
 		if (outletId) {
-			outlet = await Outlet.findOne({ outletId });
+			outlet = await Outlet.findById({_id: outletId });
 
 			if (!outlet) {
 				return res.status(404).json({
