@@ -24,6 +24,9 @@ const paymentSchema = new mongoose.Schema({
 		enum: ['cash', 'bank transfer', 'cheque', 'card'],
 		required: true,
 	},
+	receipt: {
+		type: String,
+	},
 	reference: {
 		type: String,
 	},

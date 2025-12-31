@@ -517,7 +517,7 @@ export const getAllProducts = async (req, res) => {
 
 		// Format response
 		const formattedProducts = products.map((product) => ({
-			id: product._id,
+			_id: product._id,
 			productId: product.productId,
 			title: product.title,
 			description: product.description,

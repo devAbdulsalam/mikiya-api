@@ -26,6 +26,7 @@ router.post('/', auth, async (req, res) => {
 		}
 
 		const payment = new Payment({
+			receipt,
 			invoiceId,
 			customerId,
 			amount,

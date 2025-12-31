@@ -11,6 +11,8 @@ export const getMikiyaPlasticDashboard = async (req, res) => {
 	try {
 		console.log('Fetching Mikiya Plastic dashboard data...');
 
+		// Fetch invoices with all necessary population
+
 		// Fetch data in parallel for performance
 		const [
 			transactions,
@@ -20,7 +22,12 @@ export const getMikiyaPlasticDashboard = async (req, res) => {
 			totalSales,
 			outStandingDebt,
 		] = await Promise.all([
-			Transaction.find().limit(10).sort({ createdAt: -1 }), // latest 10
+			Invoice.find()
+				.limit(10)
+				.sort({ createdAt: -1 }) // latest 10
+				.populate('outletId', 'name address')
+				.populate('customerId', 'name phone email')
+				.populate('items.productId', 'title price'),
 			Customer.countDocuments(),
 			Product.countDocuments(),
 			Outlet.countDocuments(),
@@ -28,7 +35,8 @@ export const getMikiyaPlasticDashboard = async (req, res) => {
 				{ $group: { _id: null, total: { $sum: '$amount' } } },
 			]),
 			Invoice.aggregate([
-				{ $group: { _id: null, total: { $sum: '$amount' } } },
+				{ $match: { balance: { $gt: 0 } } }, // only invoices with unpaid debt
+				{ $group: { _id: null, total: { $sum: '$balance' } } },
 			]),
 		]);
 
@@ -67,5 +75,45 @@ export const getMikiyaPlasticDashboard = async (req, res) => {
 	} catch (error) {
 		console.error(error);
 		res.status(400).json({ error: error.message });
+	}
+};
+
+export const getDebtStats = async (req, res) => {
+	try {
+		const outstanding = await Invoice.aggregate([
+			{ $match: { balance: { $gt: 0 } } },
+			{ $group: { _id: null, total: { $sum: '$balance' } } },
+		]);
+
+		const totalOutstandingDebt = outstanding[0]?.total || 0;
+
+		const totalCustomersWithDebt = await Customer.countDocuments({
+			currentDebt: { $gt: 0 },
+		});
+		
+		const [pendingInvoices, debtAgg] = await Promise.all([
+			Invoice.find({ status: { $ne: 'paid' } }),
+			Invoice.aggregate([
+				{ $match: { status: { $ne: 'paid' } } },
+				{ $group: { _id: null, total: { $sum: '$balance' } } },
+			]),
+		]);
+
+		const totalDebt = debtAgg[0]?.total || 0;
+
+		
+		
+		return res.json({
+			success: true,
+			totalPendingInvoices: pendingInvoices.length,
+			totalDebt,
+			debts: pendingInvoices,
+			totalOutstandingDebt,
+			totalCustomersWithDebt,
+			message: 'Debt stats fetched successfully',
+		});
+	} catch (error) {
+		console.log(error);
+		res.status(500).json({ error: error.message });
 	}
 };
