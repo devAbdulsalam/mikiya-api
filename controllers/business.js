@@ -160,3 +160,26 @@ export const deleteBusiness = async (req, res) => {
 		});
 	}
 };
+export const getAllBusinessAndOutlets = async (req, res) => {
+	try {
+		const businesses = await Business.find().select(
+			'_id businessId name address phone'
+		);
+		const outlets = await Outlet.find().select(
+			'_id businessId name address phone'
+		);
+		res.json({
+			businesses,
+			outlets,
+			success: true,
+			message: 'Business and outlets fetched successfully',
+		});
+	} catch (error) {
+		console.error('Get Business By ID Error:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to fetch Business',
+			error: error.message,
+		});
+	}
+};

@@ -15,8 +15,8 @@ export const getCustomers = async (req, res) => {
 		if (search) {
 			filter.$or = [
 				{ name: { $regex: search, $options: 'i' } },
-				{ 'contact.phone': { $regex: search, $options: 'i' } },
-				{ 'contact.email': { $regex: search, $options: 'i' } },
+				{ phone: { $regex: search, $options: 'i' } },
+				{ email: { $regex: search, $options: 'i' } },
 				{ customerId: { $regex: search, $options: 'i' } },
 			];
 		}

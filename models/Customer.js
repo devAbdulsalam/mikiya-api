@@ -24,11 +24,8 @@ const customerSchema = new mongoose.Schema({
 		enum: ['wholesale', 'retail', 'corporate', 'individual'],
 		default: 'retail',
 	},
-	contact: {
-		phone: String,
-		email: String,
-		whatsapp: String,
-	},
+	phone: String,
+	email: String,
 	address: String,
 	businessInfo: {
 		businessName: String,

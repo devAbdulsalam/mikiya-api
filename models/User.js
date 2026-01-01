@@ -29,6 +29,11 @@ const userSchema = new mongoose.Schema({
 		enum: ['admin', 'manager', 'staff'],
 		default: 'staff',
 	},
+	branch: {
+		type: String,
+		enum: ['admin', 'foundation', 'solar'],
+		default: 'admin',
+	},
 	assignedBusinesses: [
 		{
 			type: mongoose.Schema.Types.ObjectId,
