@@ -27,12 +27,12 @@ const userSchema = new mongoose.Schema({
 	role: {
 		type: String,
 		enum: ['admin', 'manager', 'staff'],
-		default: 'staff',
+		default: 'manager',
 	},
-	branch: {
+	department: {
 		type: String,
-		enum: ['admin', 'foundation', 'solar'],
-		default: 'admin',
+		enum: ['foundation', 'plastic', 'solar'],
+		default: 'plastic',
 	},
 	assignedBusinesses: [
 		{
@@ -95,7 +95,6 @@ const userSchema = new mongoose.Schema({
 		default: Date.now,
 	},
 });
-
 
 // Generate password reset token
 userSchema.methods.createPasswordResetToken = function () {
