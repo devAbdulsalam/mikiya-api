@@ -90,9 +90,12 @@ export const getDebtStats = async (req, res) => {
 		const totalCustomersWithDebt = await Customer.countDocuments({
 			currentDebt: { $gt: 0 },
 		});
-		
+
 		const [pendingInvoices, debtAgg] = await Promise.all([
-			Invoice.find({ status: { $ne: 'paid' } }),
+			Invoice.find({ status: { $ne: 'paid' } })
+				.populate('outletId', 'name address')
+				.populate('customerId', 'name phone email')
+				.populate('items.productId', 'title price'),
 			Invoice.aggregate([
 				{ $match: { status: { $ne: 'paid' } } },
 				{ $group: { _id: null, total: { $sum: '$balance' } } },
@@ -101,8 +104,6 @@ export const getDebtStats = async (req, res) => {
 
 		const totalDebt = debtAgg[0]?.total || 0;
 
-		
-		
 		return res.json({
 			success: true,
 			totalPendingInvoices: pendingInvoices.length,

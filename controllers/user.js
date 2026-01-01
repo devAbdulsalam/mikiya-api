@@ -12,7 +12,6 @@ import {
 import { generateUserId } from '../utils/generateId.js';
 import Business from '../models/Business.js';
 import Outlet from '../models/Outlet.js';
-import User from '../models/User.js';
 
 export const createManager = async ({
 	username,
@@ -106,7 +105,7 @@ export const getUsers = async (req, res) => {
 
 		const [users, total] = await Promise.all([
 			User.find(filter)
-				.populate('outletId', 'name outletId')
+				// .populate('outletId', 'name outletId')
 				.populate('createdBy', 'username')
 				.populate('suspendedBy', 'username')
 				.select('-password -loginAttempts -lockUntil')

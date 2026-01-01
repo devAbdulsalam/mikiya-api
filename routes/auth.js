@@ -189,6 +189,7 @@ router.post('/login', validate(loginValidation), async (req, res) => {
 					outletId: user.outletId,
 					profile: user.profile,
 					settings: user.settings,
+					department: user.department,
 				},
 			});
 	} catch (error) {
@@ -430,6 +431,7 @@ router.post('/refresh-token', auth, async (req, res, next) => {
 				outletId: user.outletId,
 				profile: user.profile,
 				settings: user.settings,
+				department: user.department,
 			},
 		});
 	} catch (error) {

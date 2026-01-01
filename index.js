@@ -22,6 +22,7 @@ import invoiceRoutes from './routes/invoice.js';
 import productRoutes from './routes/product.js';
 import dashboardRoutes from './routes/dashboard.js';
 import businessRoutes from './routes/business.js';
+import userRoutes from './routes/user.js';
 // import foundationRoutes from './routes/foundation/index.js';
 // import reportRoutes from './routes/report.js';
 
@@ -81,7 +82,8 @@ app.use('/api/transactions', transactionRoutes);
 app.use('/api/invoices', invoiceRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/businesses', businessRoutes);
-// app.use('/api/foundation', foundationRoutes);
+app.use('/api/users', userRoutes);
+// app.use('/api/reports', reportRoutes);
 // app.use('/api/reports', reportRoutes);
 
 // Health check endpoint
