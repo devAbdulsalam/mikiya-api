@@ -5,6 +5,7 @@ import Product from '../models/Product.js';
 import Customer from '../models/Customer.js';
 import Outlet from '../models/Outlet.js';
 import Payment from '../models/Payment.js';
+import cloudinary from '../config/cloudinary.js';
 
 export const getAllInvoices = async (req, res) => {
 	try {
@@ -167,17 +168,27 @@ export const newInvoice = async (req, res) => {
 			],
 			{ session }
 		);
-
+		let receipt;
+		if (req.file) {
+			const result = await cloudinary.uploader.upload(req.file.path, {
+				folder: 'receipts',
+				overwrite: true,
+			});
+			receipt = result.secure_url;
+		} else {
+			receipt = null;
+		}
 		await Payment.create(
 			[
 				{
 					invoiceId: invoice[0]._id,
 					customerId,
 					amount: amountPaid,
-					method: paymentInfo.paymentMethod,
+					method: paymentInfo.method,
 					reference: paymentInfo.reference,
 					createdBy: req.user._id,
 					date: paymentInfo.date,
+					receipt,
 				},
 			],
 			{ session }
@@ -215,11 +226,15 @@ export const newInvoice = async (req, res) => {
 
 export const getInvoiceById = async (req, res) => {
 	try {
-		const invoice = await Invoice.findById(req.params.id);
+		const invoice = await Invoice.findById(req.params.id)
+			.populate('customerId', 'name phone email address')
+			.populate('items.productId', 'title price');
 		if (!invoice) {
 			return res.status(404).json({ error: 'Invoice not found' });
 		}
-		res.json(invoice);
+		const payments = await Payment.find({ invoiceId: invoice._id });
+		const data = { ...invoice._doc, payments };
+		res.json(data);
 	} catch (error) {
 		res.status(500).json({ error: error.message });
 	}

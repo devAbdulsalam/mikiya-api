@@ -24,6 +24,14 @@ const userSchema = new mongoose.Schema({
 		minlength: 6,
 		select: false,
 	},
+	outletId: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'Outlet',
+	},
+	businessId: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'Business',
+	},
 	role: {
 		type: String,
 		enum: ['admin', 'manager', 'staff'],
@@ -41,6 +49,11 @@ const userSchema = new mongoose.Schema({
 	isSuspended: {
 		type: Boolean,
 		default: false,
+	},
+	status: {
+		type: String,
+		enum: ['active', 'suspended', 'pending'],
+		default: 'active',
 	},
 	suspensionReason: String,
 	suspendedBy: {

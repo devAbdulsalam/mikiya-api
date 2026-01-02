@@ -49,7 +49,6 @@ export const suspendUser = async (req, res) => {
 	res.json({ message: 'User suspended' });
 };
 
-
 export const assignManager = async (req, res) => {
 	const { userId, businessId, outletId } = req.body;
 
@@ -76,6 +75,7 @@ export const getUsers = async (req, res) => {
 	try {
 		const {
 			role,
+			businessId,
 			outletId,
 			isActive,
 			isSuspended,
@@ -91,6 +91,7 @@ export const getUsers = async (req, res) => {
 
 		if (role) filter.role = role;
 		if (outletId) filter.outletId = outletId;
+		if (businessId) filter.businessId = businessId;
 		if (isActive !== undefined) filter.isActive = isActive === 'true';
 		if (isSuspended !== undefined) filter.isSuspended = isSuspended === 'true';
 
@@ -105,7 +106,7 @@ export const getUsers = async (req, res) => {
 
 		const [users, total] = await Promise.all([
 			User.find(filter)
-				// .populate('outletId', 'name outletId')
+				.populate('outletId', 'name outletId')
 				.populate('createdBy', 'username')
 				.populate('suspendedBy', 'username')
 				.select('-password -loginAttempts -lockUntil')
@@ -191,22 +192,24 @@ export const createUser = async (req, res) => {
 	}
 };
 
-export const getUser = async (req, res) => {
+export const updateUser = async (req, res) => {
 	try {
-		const { role, outletId, isActive, profile, settings } = req.body;
+		const { role, outletId, isActive, profile, settings, businessId } =
+			req.body;
 		const userId = req.params.id;
 
 		// Cannot update yourself
-		if (userId === req.user.id) {
-			return res.status(400).json({
-				success: false,
-				message: 'You cannot update your own account via this endpoint',
-			});
-		}
+		// if (userId === req.user.id) {
+		// 	return res.status(400).json({
+		// 		success: false,
+		// 		message: 'You cannot update your own account via this endpoint',
+		// 	});
+		// }
 
 		const updates = {};
 		if (role) updates.role = role;
 		if (outletId !== undefined) updates.outletId = outletId;
+		if (businessId !== undefined) updates.businessId = businessId;
 		if (isActive !== undefined) updates.isActive = isActive;
 		if (profile) updates.profile = profile;
 		if (settings) updates.settings = settings;
@@ -286,6 +289,35 @@ export const getUserStats = async (req, res) => {
 		res.status(500).json({
 			success: false,
 			message: 'Failed to fetch user statistics',
+			error: error.message,
+		});
+	}
+};
+
+export const getUser = async (req, res) => {
+	try {
+		const userId = req.params.id;
+
+		const user = await User.findById(userId)
+			.select('-password -loginAttempts -lockUntil')
+			.populate('outletId', 'name outletId');
+
+		if (!user) {
+			return res.status(404).json({
+				success: false,
+				message: 'User not found',
+			});
+		}
+
+		res.json({
+			success: true,
+			user,
+		});
+	} catch (error) {
+		console.error('Get User Error:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to fetch user',
 			error: error.message,
 		});
 	}

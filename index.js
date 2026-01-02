@@ -23,6 +23,7 @@ import productRoutes from './routes/product.js';
 import dashboardRoutes from './routes/dashboard.js';
 import businessRoutes from './routes/business.js';
 import userRoutes from './routes/user.js';
+import paymentRoutes from './routes/payment.js';
 // import foundationRoutes from './routes/foundation/index.js';
 // import reportRoutes from './routes/report.js';
 
@@ -83,6 +84,7 @@ app.use('/api/invoices', invoiceRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/businesses', businessRoutes);
 app.use('/api/users', userRoutes);
+app.use('/api/payments', paymentRoutes);
 // app.use('/api/reports', reportRoutes);
 // app.use('/api/reports', reportRoutes);
 

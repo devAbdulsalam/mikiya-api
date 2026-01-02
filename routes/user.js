@@ -1,5 +1,4 @@
 import express from 'express';
-import User from '../models/User.js';
 import { auth, isAdmin } from '../middlewares/auth.js';
 import {
 	assignManager,
@@ -7,6 +6,7 @@ import {
 	createUser,
 	getUser,
 	getUserStats,
+	updateUser,
 } from '../controllers/user.js';
 
 const router = express.Router();
@@ -19,8 +19,11 @@ router.get('/', auth, isAdmin, getUsers);
 // Create user (Admin only)
 router.post('/', auth, isAdmin, createUser);
 
+// get user (Admin only)
+router.get('/:id', auth, isAdmin, getUser);
+
 // Update user (Admin only)
-router.put('/:id', auth, isAdmin, getUser);
+router.patch('/:id', auth, isAdmin, updateUser);
 
 // Get user statistics (Admin only)
 router.get('/stats', auth, isAdmin, getUserStats);

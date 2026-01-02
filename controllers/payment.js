@@ -1,14 +1,17 @@
-import Payment from "../models/Payment";
+import Payment from '../models/Payment.js';
+import Customer from '../models/Customer.js';
+import Invoice from '../models/Invoice.js';
+import cloudinary from '../config/cloudinary.js';
 
 export const getPayments = async (req, res) => {
-    try {
-        const payments = await Payment.find()
-            .populate('invoiceId')
-            .populate('customerId');
-        res.json(payments);
-    } catch (error) {
-        res.status(500).json({ error: error.message });
-    }
+	try {
+		const payments = await Payment.find()
+			.populate('invoiceId')
+			.populate('customerId');
+		res.json(payments);
+	} catch (error) {
+		res.status(500).json({ error: error.message });
+	}
 };
 export const newPayment = async (req, res) => {
 	try {
@@ -18,6 +21,24 @@ export const newPayment = async (req, res) => {
 		if (!customer) {
 			return res.status(404).json({ error: 'Customer not found' });
 		}
+		if (invoiceId) {
+			const invoice = await Invoice.findById(invoiceId);
+			if (!invoice) {
+				return res.status(404).json({ error: 'Invoice not found' });
+			}
+		}
+		let receipt;
+		if (req.file) {
+			const result = await cloudinary.uploader.upload(req.file.path, {
+				folder: 'receipts',
+				overwrite: true,
+				public_id: `receipt_${invoiceId}`,
+			});
+			console.log('result', result)
+			receipt = result.secure_url;
+		} else {
+			receipt = null;
+		}
 
 		const payment = new Payment({
 			receipt,
@@ -25,6 +46,7 @@ export const newPayment = async (req, res) => {
 			customerId,
 			amount,
 			method,
+			receipt,
 			reference,
 			createdBy: req.user.userId,
 		});
@@ -53,6 +75,7 @@ export const newPayment = async (req, res) => {
 
 		res.status(201).json(payment);
 	} catch (error) {
+		console.error(error)
 		res.status(400).json({ error: error.message });
 	}
-}
+};

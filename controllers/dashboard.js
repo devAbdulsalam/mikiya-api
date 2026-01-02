@@ -4,17 +4,20 @@ import Product from '../models/Product.js';
 import Outlet from '../models/Outlet.js';
 import Payment from '../models/Payment.js';
 import Invoice from '../models/Invoice.js';
+import Business from '../models/Business.js';
 import Order from '../models/Order.js';
 import Debt from '../models/Debt.js';
 
-export const getMikiyaPlasticDashboard = async (req, res) => {
+export const getBusinessDashboard = async (req, res) => {
 	try {
 		console.log('Fetching Mikiya Plastic dashboard data...');
+		const businessId = req.params.id;
 
 		// Fetch invoices with all necessary population
 
 		// Fetch data in parallel for performance
 		const [
+			business,
 			transactions,
 			totalCustomers,
 			totalProducts,
@@ -22,20 +25,22 @@ export const getMikiyaPlasticDashboard = async (req, res) => {
 			totalSales,
 			outStandingDebt,
 		] = await Promise.all([
-			Invoice.find()
+			Business.findById(businessId),
+			Invoice.find({ businessId })
 				.limit(10)
 				.sort({ createdAt: -1 }) // latest 10
 				.populate('outletId', 'name address')
 				.populate('customerId', 'name phone email')
 				.populate('items.productId', 'title price'),
-			Customer.countDocuments(),
-			Product.countDocuments(),
-			Outlet.countDocuments(),
+			Customer.countDocuments({ businessId }),
+			Product.countDocuments({ businessId }),
+			Outlet.countDocuments({ businessId }),
 			Payment.aggregate([
+				{ $match: { businessId } },
 				{ $group: { _id: null, total: { $sum: '$amount' } } },
 			]),
 			Invoice.aggregate([
-				{ $match: { balance: { $gt: 0 } } }, // only invoices with unpaid debt
+				{ $match: { businessId, balance: { $gt: 0 } } }, // only invoices with unpaid debt
 				{ $group: { _id: null, total: { $sum: '$balance' } } },
 			]),
 		]);
@@ -59,6 +64,7 @@ export const getMikiyaPlasticDashboard = async (req, res) => {
 		console.log('Dashboard data fetched successfully.');
 		console.log('Outstanding debt:', outStandingDebt[0]?.total);
 		console.log('Total sales:', totalSales[0]?.total);
+		console.log('businessId:', businessId);
 
 		const dashboardData = {
 			totalSales: totalSales[0]?.total || 20000,
@@ -69,6 +75,7 @@ export const getMikiyaPlasticDashboard = async (req, res) => {
 			totalOutStandingDebt: outStandingDebt[0]?.total || 5000,
 			outletPerformance,
 			salesTrends,
+			business
 		};
 
 		res.status(200).json(dashboardData);
@@ -80,8 +87,9 @@ export const getMikiyaPlasticDashboard = async (req, res) => {
 
 export const getDebtStats = async (req, res) => {
 	try {
+		const businessId = req.params.id;
 		const outstanding = await Invoice.aggregate([
-			{ $match: { balance: { $gt: 0 } } },
+			{ $match: {businessId, balance: { $gt: 0 } } },
 			{ $group: { _id: null, total: { $sum: '$balance' } } },
 		]);
 
@@ -92,12 +100,12 @@ export const getDebtStats = async (req, res) => {
 		});
 
 		const [pendingInvoices, debtAgg] = await Promise.all([
-			Invoice.find({ status: { $ne: 'paid' } })
+			Invoice.find({ businessId, status: { $ne: 'paid' } })
 				.populate('outletId', 'name address')
 				.populate('customerId', 'name phone email')
 				.populate('items.productId', 'title price'),
 			Invoice.aggregate([
-				{ $match: { status: { $ne: 'paid' } } },
+				{ $match: { businessId, status: { $ne: 'paid' } } },
 				{ $group: { _id: null, total: { $sum: '$balance' } } },
 			]),
 		]);

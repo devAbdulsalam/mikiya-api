@@ -1,13 +1,13 @@
 import express from 'express';
 import { auth } from '../middlewares/auth.js';
 import {
-	getMikiyaPlasticDashboard,
+	getBusinessDashboard,
 	getDebtStats,
 } from '../controllers/dashboard.js';
 
 const router = express.Router();
 
-router.get('/mikiya-plastic', getMikiyaPlasticDashboard);
-router.get('/debt-stats', getDebtStats);
+router.get('/business/:id', auth, getBusinessDashboard);
+router.get('/debt-stats/:id', auth, getDebtStats);
 
 export default router;

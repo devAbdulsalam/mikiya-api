@@ -3,6 +3,8 @@ import jwt from 'jsonwebtoken';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
 import User from '../models/User.js';
+import Outlet from '../models/Outlet.js';
+import Business from '../models/Business.js';
 import PasswordReset from '../models/PasswordReset.js';
 import { auth, isAdmin } from '../middlewares/auth.js';
 import {
@@ -39,7 +41,15 @@ router.post(
 	validate(registerValidation),
 	async (req, res) => {
 		try {
-			const { username, email, password, role, outletId } = req.body;
+			const {
+				username,
+				email,
+				password,
+				role,
+				department,
+				outletId,
+				businessId,
+			} = req.body;
 
 			// Check if user exists
 			const existingUser = await User.findOne({
@@ -53,26 +63,51 @@ router.post(
 				});
 			}
 
+			if (businessId) {
+				const business = await Business.findById(businessId);
+				if (!business) {
+					return res.status(400).json({
+						success: false,
+						message: 'Business not found',
+					});
+				}
+			}
+			if (outletId) {
+				const outlet = await Business.findById(outletId);
+				if (!outlet) {
+					return res.status(400).json({
+						success: false,
+						message: 'Outlet not found',
+					});
+				}
+			}
+
 			// Generate user ID
 			const userId = generateUserId();
+
+			const newPassword = password || generateTemporaryPassword();
+			// Create admin user
+			const hashedPassword = await bcrypt.hash(newPassword, 12);
 
 			// Create user
 			const user = new User({
 				userId,
 				username,
 				email,
-				password: password || generateTemporaryPassword(),
+				password: hashedPassword,
 				role: role || 'staff',
 				outletId,
+				businessId,
+				department,
 				createdBy: req.user._id,
 			});
 
 			await user.save();
 
 			// Send welcome email if email is provided
-			if (email) {
-				await sendWelcomeEmail(email, username, password || user.password);
-			}
+			// if (email) {
+			// 	await sendWelcomeEmail(email, username, password: newPassword);
+			// }
 
 			// Remove password from response
 			user.password = undefined;
@@ -190,6 +225,8 @@ router.post('/login', validate(loginValidation), async (req, res) => {
 					profile: user.profile,
 					settings: user.settings,
 					department: user.department,
+					outletId: user.outletId,
+					businessId: user.businessId,
 				},
 			});
 	} catch (error) {
@@ -432,6 +469,8 @@ router.post('/refresh-token', auth, async (req, res, next) => {
 				profile: user.profile,
 				settings: user.settings,
 				department: user.department,
+				outletId: user.outletId,
+				businessId: user.businessId,
 			},
 		});
 	} catch (error) {
@@ -737,11 +776,21 @@ router.get('/verify', auth, async (req, res) => {
 // Logout
 router.post('/logout', auth, async (req, res) => {
 	try {
-		// In a real application, you might want to blacklist the token
-		res.json({
-			success: true,
-			message: 'Logged out successfully',
-		});
+		const options = {
+			httpOnly: true,
+			secure: process.env.NODE_ENV === 'production',
+		};
+		res.clearCookie('accessToken');
+		res.clearCookie('refreshToken');
+		// res.status(200).
+		return res
+			.status(200)
+			.clearCookie('accessToken', options)
+			.clearCookie('refreshToken', options)
+			.json({
+				success: true,
+				message: 'Logged out successfully',
+			});
 	} catch (error) {
 		console.error('Logout Error:', error);
 		res.status(500).json({

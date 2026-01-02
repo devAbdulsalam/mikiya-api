@@ -1,4 +1,6 @@
 import Customer from '../models/Customer.js';
+import Invoice from '../models/Invoice.js';
+import Payment from '../models/Payment.js';
 
 export const getCustomers = async (req, res) => {
 	try {
@@ -85,10 +87,26 @@ export const getCustomerById = async (req, res) => {
 				message: 'Customer not found',
 			});
 		}
-		res.json({
-			success: true,
-			customer,
-		});
+		const totalOrders = await Invoice.countDocuments({ customerId: id });
+		const totalPurchases = await Payment.aggregate([
+			{ $match: { customerId: id } },
+			{ $group: { _id: null, total: { $sum: '$amount' } } },
+		]);
+		const transactions = await Payment.find({ customerId: id });
+		const totalDebt = await Invoice.aggregate([
+			{ $match: { customerId: id, balance: { $gt: 0 } } }, // only invoices with unpaid debt
+			{ $group: { _id: null, total: { $sum: '$balance' } } },
+		]);
+		const averageOrderValue = totalPurchases / totalOrders;
+		const data = {
+			...customer._doc,
+			totalPurchases: totalPurchases[0].total || 0,
+			totalOrders,
+			averageOrderValue,
+			transactions,
+			totalDebt: totalDebt[0]?.total || 0,
+		};
+		res.json(data);
 	} catch (error) {
 		res.status(500).json({ error: error.message });
 	}
