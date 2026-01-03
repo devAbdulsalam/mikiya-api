@@ -16,7 +16,7 @@ const outletSchema = new mongoose.Schema({
 		ref: 'Business',
 		required: true,
 	},
-	manager: {
+	managerId: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: 'User',
 	},
