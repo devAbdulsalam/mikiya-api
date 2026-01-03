@@ -26,11 +26,8 @@ const businessSchema = new mongoose.Schema({
 			ref: 'User',
 		},
 	],
-	contact: {
-		phone: String,
-		email: String,
-		whatsapp: String,
-	},
+	phone: String,
+	email: String,
 	totalOutlets: {
 		type: Number,
 		default: 0,

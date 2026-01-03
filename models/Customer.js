@@ -33,6 +33,7 @@ const customerSchema = new mongoose.Schema({
 		registrationNumber: String,
 	},
 	creditInfo: {
+		creditBalance: { type: Number, default: 0 },
 		creditLimit: { type: Number, default: 0 },
 		currentDebt: { type: Number, default: 0 },
 		creditEnabled: { type: Boolean, default: false },

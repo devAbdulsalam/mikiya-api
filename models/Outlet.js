@@ -16,6 +16,10 @@ const outletSchema = new mongoose.Schema({
 		ref: 'Business',
 		required: true,
 	},
+	manager: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'User',
+	},
 	managers: [
 		{
 			type: mongoose.Schema.Types.ObjectId,
@@ -30,12 +34,7 @@ const outletSchema = new mongoose.Schema({
 	},
 	address: String,
 	description: String,
-
-	contact: {
-		phone: String,
-		email: String,
-		whatsapp: String,
-	},
+	phone: String,
 	totalSales: {
 		type: Number,
 		default: 0,

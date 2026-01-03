@@ -92,7 +92,9 @@ export const getCustomerById = async (req, res) => {
 			{ $match: { customerId: id } },
 			{ $group: { _id: null, total: { $sum: '$amount' } } },
 		]);
-		const transactions = await Payment.find({ customerId: id });
+		const transactions = await Payment.find({ customerId: id })
+			.populate('invoiceId', 'status customerId')
+			.populate('invoiceId.outletId', 'name');
 		const totalDebt = await Invoice.aggregate([
 			{ $match: { customerId: id, balance: { $gt: 0 } } }, // only invoices with unpaid debt
 			{ $group: { _id: null, total: { $sum: '$balance' } } },
@@ -100,7 +102,7 @@ export const getCustomerById = async (req, res) => {
 		const averageOrderValue = totalPurchases / totalOrders;
 		const data = {
 			...customer._doc,
-			totalPurchases: totalPurchases[0].total || 0,
+			totalPurchases: totalPurchases[0]?.total || 0,
 			totalOrders,
 			averageOrderValue,
 			transactions,
@@ -108,6 +110,7 @@ export const getCustomerById = async (req, res) => {
 		};
 		res.json(data);
 	} catch (error) {
+		console.error(error);
 		res.status(500).json({ error: error.message });
 	}
 };

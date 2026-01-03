@@ -1,11 +1,10 @@
 import mongoose from 'mongoose';
 import Invoice from '../models/Invoice.js';
-import OutletProduct from '../models/OutletProduct.js';
 import Product from '../models/Product.js';
 import Customer from '../models/Customer.js';
 import Outlet from '../models/Outlet.js';
 import Payment from '../models/Payment.js';
-import cloudinary from '../config/cloudinary.js';
+import { uploadBufferToCloudinary } from '../utils/uploadAndExtractImageUrls.js';
 
 export const getAllInvoices = async (req, res) => {
 	try {
@@ -14,7 +13,7 @@ export const getAllInvoices = async (req, res) => {
 			// .select('amounts createdAt dueDate status')
 			.sort({ createdAt: -1 })
 			.populate('outletId', 'name address')
-			.populate('customerId', 'name phone email')
+			.populate('customerId', 'name phone email address')
 			.populate('items.productId', 'title price');
 
 		// Compute totals dynamically
@@ -54,7 +53,7 @@ export const getOrderStats = async (req, res) => {
 	try {
 		const invoices = await Invoice.find()
 			.populate('outletId', 'name')
-			.populate('customerId', 'name');
+			.populate('customerId', 'name phone email address');
 
 		const stats = await Invoice.aggregate([
 			{
@@ -101,7 +100,6 @@ export const newInvoice = async (req, res) => {
 		const {
 			outletId,
 			customerId,
-			items,
 			subtotal,
 			tax,
 			total,
@@ -109,10 +107,13 @@ export const newInvoice = async (req, res) => {
 			paymentTerms,
 			note,
 			amountPaid,
-			paymentInfo,
 		} = req.body;
 
-		console.log('Create Invoice Req User:', req.user);
+		const items = JSON.parse(req.body.items);
+		const paymentInfo = req.body.paymentInfo
+			? JSON.parse(req.body.paymentInfo)
+			: null;
+		console.log('iteems', items)
 
 		// ===== Validate Customer & Outlet =====
 		const [outlet, customer] = await Promise.all([
@@ -170,11 +171,11 @@ export const newInvoice = async (req, res) => {
 		);
 		let receipt;
 		if (req.file) {
-			const result = await cloudinary.uploader.upload(req.file.path, {
-				folder: 'receipts',
-				overwrite: true,
-			});
-			receipt = result.secure_url;
+			receipt = await uploadBufferToCloudinary(
+				req.file.buffer,
+				`receipt_${invoice[0]._id}`
+			);
+			console.log('receipt', receipt);
 		} else {
 			receipt = null;
 		}
