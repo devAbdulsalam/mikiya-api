@@ -14,31 +14,52 @@ import Business from '../models/Business.js';
 import Outlet from '../models/Outlet.js';
 
 export const createManager = async ({
+	firstName,
+	lastName,
 	username,
 	email,
 	password,
 	businessId,
 	outletId,
 }) => {
-	if (!username || !email || !password) {
-		return res.status(400).json({ message: 'All fields are required' });
+	try {
+		if (!lastName || !firstName) {
+			return res.status(400).json({ message: 'All fields are required' });
+		}
+		if (!email || !password) {
+			return res.status(400).json({ message: 'All fields are required' });
+		}
+
+		if (await User.findOne({ email })) {
+			return res.status(400).json({ message: 'Email already in use' });
+		}
+					// Generate user ID
+					const userId = generateUserId();
+		
+					const newPassword = password || generateTemporaryPassword();
+					// Create admin user
+					const hashedPassword = await bcrypt.hash(newPassword, 12);
+		
+		const user = await User.create({
+			username,
+			email,
+			password: hashedPassword,
+			role: 'manager',
+		});
+
+		if (businessId) user.assignedBusinesses.push(businessId);
+		if (outletId) user.assignedOutlets.push(outletId);
+
+		await user.save();
+		return user;
+	} catch (error) {
+		console.error('Creating Users Error:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to creating users',
+			error: error.message,
+		});
 	}
-
-	if (await User.findOne({ email })) {
-		return res.status(400).json({ message: 'Email already in use' });
-	}
-	const user = await User.create({
-		username,
-		email,
-		password,
-		role: 'manager',
-	});
-
-	if (businessId) user.assignedBusinesses.push(businessId);
-	if (outletId) user.assignedOutlets.push(outletId);
-
-	await user.save();
-	return user;
 };
 
 // controllers/userController.js
@@ -70,6 +91,30 @@ export const assignManager = async (req, res) => {
 	}
 	await user.save();
 	res.json({ message: 'Manager assigned', user });
+};
+export const assignManagerToOutlet = async (req, res) => {
+	try {
+		const { managerId, outletId, userId } = req.body;
+		const user = await User.findById(userId);
+		if (!user) {
+			return res.status(404).json({ message: 'User not found' });
+		}
+		if (!outletId) {
+			return res.status(404).json({ message: 'Outlet not found' });
+		}
+
+		user.role = 'manager';
+		await Outlet.findByIdAndUpdate(outletId, { managerId });
+		await user.save();
+		res.json({ message: 'Manager assigned', user });
+	} catch (error) {
+		console.error('Assign Manager Error:', error);
+		res.status(500).json({
+			success: false,
+			message: 'Failed to assign manager',
+			error: error.message,
+		});
+	}
 };
 export const getUsers = async (req, res) => {
 	try {

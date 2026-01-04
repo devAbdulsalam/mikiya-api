@@ -35,19 +35,19 @@ const outletSchema = new mongoose.Schema({
 	address: String,
 	description: String,
 	phone: String,
-	totalSales: {
-		type: Number,
-		default: 0,
-	},
-	totalProducts: {
-		type: Number,
-		default: 0,
-	},
-	financial: {
-		totalRevenue: { type: Number, default: 0 },
-		totalExpenses: { type: Number, default: 0 },
-		currentBalance: { type: Number, default: 0 },
-	},
+	// totalSales: {
+	// 	type: Number,
+	// 	default: 0,
+	// },
+	// totalProducts: {
+	// 	type: Number,
+	// 	default: 0,
+	// },
+	// financial: {
+	// 	totalRevenue: { type: Number, default: 0 },
+	// 	totalExpenses: { type: Number, default: 0 },
+	// 	currentBalance: { type: Number, default: 0 },
+	// },
 	settings: {
 		currency: { type: String, default: 'NGN' },
 		taxRate: { type: Number, default: 7.5 },

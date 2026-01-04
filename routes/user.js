@@ -7,11 +7,14 @@ import {
 	getUser,
 	getUserStats,
 	updateUser,
+	assignManagerToOutlet,
 } from '../controllers/user.js';
 
 const router = express.Router();
 // Assign manager to business/outlet (Admin only)
 router.post('/assign-manager', auth, isAdmin, assignManager);
+
+router.post('/assign-manager', auth, isAdmin, assignManagerToOutlet);
 
 // Get all users with filters (Admin only)
 router.get('/', auth, isAdmin, getUsers);

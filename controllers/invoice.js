@@ -207,11 +207,6 @@ export const newInvoice = async (req, res) => {
 			{ session }
 		);
 
-		await Outlet.updateOne(
-			{ _id: outletId },
-			{ $inc: { totalSales: total } },
-			{ session }
-		);
 
 		// ===== Commit Transaction =====
 		await session.commitTransaction();

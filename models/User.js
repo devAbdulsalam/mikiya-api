@@ -11,6 +11,13 @@ const userSchema = new mongoose.Schema({
 		minlength: 3,
 		maxlength: 30,
 	},
+	profile: {
+		firstName: String,
+		lastName: String,
+		phone: String,
+		avatar: String,
+		address: String,
+	},
 	email: {
 		type: String,
 		required: true,
@@ -70,13 +77,7 @@ const userSchema = new mongoose.Schema({
 		default: 0,
 	},
 	lockUntil: Date,
-	profile: {
-		firstName: String,
-		lastName: String,
-		phone: String,
-		avatar: String,
-		address: String,
-	},
+
 	settings: {
 		emailNotifications: { type: Boolean, default: true },
 		smsNotifications: { type: Boolean, default: false },

@@ -25,7 +25,6 @@ import {
 	validatePasswordStrength,
 } from '../utils/helpers.js';
 import { generateUserId } from '../utils/generateId.js';
-import { hash, verifyHash } from '../utils/passwordUtils.js';
 import {
 	createAccessToken,
 	createRefreshToken,
@@ -42,12 +41,15 @@ router.post(
 	async (req, res) => {
 		try {
 			const {
+				firstName,
+				lastName,
 				username,
 				email,
 				password,
-				role,
+				role = 'staff',
 				department,
 				outletId,
+				phone,
 				businessId,
 			} = req.body;
 
@@ -63,8 +65,11 @@ router.post(
 				});
 			}
 
+			let outlet = null;
+			let business = null;
+
 			if (businessId) {
-				const business = await Business.findById(businessId);
+				business = await Business.findById(businessId);
 				if (!business) {
 					return res.status(400).json({
 						success: false,
@@ -72,8 +77,9 @@ router.post(
 					});
 				}
 			}
+
 			if (outletId) {
-				const outlet = await Business.findById(outletId);
+				outlet = await Outlet.findById(outletId);
 				if (!outlet) {
 					return res.status(400).json({
 						success: false,
@@ -82,20 +88,23 @@ router.post(
 				}
 			}
 
-			// Generate user ID
+			// Generate user ID & password
 			const userId = generateUserId();
-
 			const newPassword = password || generateTemporaryPassword();
-			// Create admin user
 			const hashedPassword = await bcrypt.hash(newPassword, 12);
 
 			// Create user
 			const user = new User({
 				userId,
 				username,
+				profile: {
+					firstName,
+					lastName,
+					phone,
+				},
 				email,
 				password: hashedPassword,
-				role: role || 'staff',
+				role,
 				outletId,
 				businessId,
 				department,
@@ -104,10 +113,26 @@ router.post(
 
 			await user.save();
 
-			// Send welcome email if email is provided
-			// if (email) {
-			// 	await sendWelcomeEmail(email, username, password: newPassword);
-			// }
+			// Assign manager roles safely
+			if (outlet) {
+				outlet.managerId = user._id;
+				await outlet.save();
+			}
+
+			if (business) {
+				business.owner = user._id;
+				business.managers.push(user._id);
+				await business.save();
+			}
+
+			// Send welcome email
+			if (email) {
+				await sendWelcomeEmail({
+					email,
+					username,
+					password: newPassword,
+				});
+			}
 
 			// Remove password from response
 			user.password = undefined;

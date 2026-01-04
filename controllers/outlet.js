@@ -39,7 +39,7 @@ export const getOutlets = async (req, res) => {
 
 		const outlets = await Outlet.find(filter)
 			.populate('createdBy', 'username email')
-			.populate('managers', 'username email phone')
+			.populate('managerId', 'username email phone')
 			.sort({ createdAt: -1 });
 
 		res.json({
@@ -60,7 +60,7 @@ export const getOutletById = async (req, res) => {
 	try {
 		const { id } = req.params;
 		const outlet = await Outlet.findById(id).populate(
-			'managers',
+			'managerId',
 			'username email phone'
 		);
 		if (!outlet) {
