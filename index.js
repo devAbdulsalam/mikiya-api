@@ -86,7 +86,6 @@ app.use('/api/businesses', businessRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
 // app.use('/api/reports', reportRoutes);
-// app.use('/api/reports', reportRoutes);
 
 // Health check endpoint
 app.get('/health', (req, res) => {
