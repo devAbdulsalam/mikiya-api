@@ -109,11 +109,27 @@ export const newInvoice = async (req, res) => {
 			amountPaid,
 		} = req.body;
 
-		const items = JSON.parse(req.body.items);
+		// console.log('items', req.body.items);
+		let items = req.body.items;
+		if (!Array.isArray(items) || items.length === 0) {
+			throw new Error('Invoice items are invalid or empty');
+		}
+		if (Array.isArray(items)) {
+			// If array of JSON strings → parse each
+			items = items.map((item) =>
+				typeof item === 'string' ? JSON.parse(item) : item
+			);
+
+			// Flatten in case each entry is an array
+			items = items.flat();
+		} else if (typeof items === 'string') {
+			// If single JSON string
+			items = JSON.parse(items);
+		}
+		console.log('invoice items', items);
 		const paymentInfo = req.body.paymentInfo
 			? JSON.parse(req.body.paymentInfo)
 			: null;
-		console.log('iteems', items)
 
 		// ===== Validate Customer & Outlet =====
 		const [outlet, customer] = await Promise.all([
@@ -140,8 +156,19 @@ export const newInvoice = async (req, res) => {
 			await product.save({ session });
 		}
 
-		// ===== Invoice Status Logic =====
+		// ===== Invoice Logic =====
 		const balance = total - amountPaid;
+
+		// if (balance > 0) {
+		// 	if (!customer.creditEnabled) {
+		// 		throw new Error('Customer credit is disabled');
+		// 	}
+
+		// 	if (customer.currentDebt + balance > customer.creditLimit) {
+		// 		throw new Error('Credit limit exceeded');
+		// 	}
+		// }
+
 		const status =
 			balance <= 0 ? 'paid' : amountPaid > 0 ? 'partial' : 'unpaid';
 
@@ -155,7 +182,7 @@ export const newInvoice = async (req, res) => {
 					outletId,
 					businessId: outlet.businessId,
 					customerId,
-					items,
+					items: items.map(({ _id, ...rest }) => rest),
 					subtotal,
 					tax,
 					total,
@@ -179,44 +206,66 @@ export const newInvoice = async (req, res) => {
 		} else {
 			receipt = null;
 		}
-		await Payment.create(
-			[
-				{
-					invoiceId: invoice[0]._id,
-					customerId,
-					amount: amountPaid,
-					method: paymentInfo.method,
-					reference: paymentInfo.reference,
-					createdBy: req.user._id,
-					date: paymentInfo.date,
-					receipt,
-				},
-			],
-			{ session }
-		);
+		// ===== Payment Record =====
+		if (amountPaid > 0) {
+			await Payment.create(
+				[
+					{
+						invoiceId: invoice[0]._id,
+						customerId: customer._id,
+						amount: amountPaid,
+						method: paymentInfo?.method || paymentMethod,
+						reference: paymentInfo?.reference || null,
+						date: paymentInfo?.date || new Date(),
+						receipt,
+						createdBy: req.user._id,
+					},
+				],
+				{ session }
+			);
+		}
+		let creditBalanceChange = 0;
+		let debtChange = 0;
 
-		// ===== Customer & Outlet Updates =====
+		if (amountPaid > total) {
+			// Overpayment → store as credit
+			creditBalanceChange = amountPaid - total;
+			debtChange = 0;
+		} else if (amountPaid < total) {
+			// Underpayment → customer owes balance
+			creditBalanceChange = 0;
+			debtChange = total - amountPaid;
+		} else {
+			// Exact payment
+			creditBalanceChange = 0;
+			debtChange = 0;
+		}
+
+		// ===== Update Customer =====
 		await Customer.updateOne(
-			{ _id: customerId },
+			{ _id: customer._id },
 			{
 				$inc: {
+					creditBalance: creditBalanceChange,
+					currentDebt: debtChange,
 					totalSales: total,
-					...(paymentMethod === 'credit' ? { currentDebt: balance } : {}),
 				},
 			},
 			{ session }
 		);
-
-
 		// ===== Commit Transaction =====
 		await session.commitTransaction();
 		session.endSession();
 
 		return res.status(201).json({ success: true, invoice: invoice[0] });
 	} catch (error) {
-		await session.abortTransaction();
-		session.endSession();
+		console.error(error);
+		if (session.inTransaction()) {
+			await session.abortTransaction();
+		}
 		return res.status(400).json({ success: false, error: error.message });
+	} finally {
+		session.endSession();
 	}
 };
 

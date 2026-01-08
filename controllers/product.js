@@ -37,7 +37,7 @@ export const createProduct = async (req, res) => {
 
 		// 2️⃣ If outletId exists, fetch outlet and validate existence
 		if (outletId) {
-			outlet = await Outlet.findById({_id: outletId });
+			outlet = await Outlet.findById({ _id: outletId });
 
 			if (!outlet) {
 				return res.status(404).json({
@@ -413,12 +413,12 @@ export const getAllProducts = async (req, res) => {
 			outlet,
 			minPrice,
 			maxPrice,
-			inStock,
 			featured,
 			bestSeller,
 			newArrival,
 			onSale,
 			search,
+			inStock,
 			page = 1,
 			limit = 20,
 			sortBy = 'createdAt',
@@ -535,14 +535,12 @@ export const getAllProducts = async (req, res) => {
 			rating: product.rating,
 			sold: product.sold,
 			reviews: product.reviews,
-			outlet: product.outlet,
-			outletDetails: product.outletId,
+			outletId: product.outletId,
 			status: product.status,
 			isFeatured: product.isFeatured,
 			isBestSeller: product.isBestSeller,
 			isNewArrival: product.isNewArrival,
 			isOnSale: product.isOnSale,
-			inStock: product.inStock,
 			savingPercentage: product.savingPercentage,
 			createdAt: product.createdAt,
 			updatedAt: product.updatedAt,
@@ -566,7 +564,6 @@ export const getAllProducts = async (req, res) => {
 				outlet,
 				minPrice,
 				maxPrice,
-				inStock,
 				featured,
 				bestSeller,
 				newArrival,
@@ -594,10 +591,7 @@ export const getProductById = async (req, res) => {
 		if (mongoose.Types.ObjectId.isValid(id)) {
 			product = await Product.findById(id)
 				.populate('outletId', 'name outletId type address contact')
-				.populate(
-					'createdBy',
-					'username email profile.firstName profile.lastName'
-				)
+				.populate('createdBy', 'username email phone')
 				.populate('updatedBy', 'username email');
 		} else {
 			// Try to find by productId
@@ -662,7 +656,6 @@ export const getProductById = async (req, res) => {
 			isBestSeller: product.isBestSeller,
 			isNewArrival: product.isNewArrival,
 			isOnSale: product.isOnSale,
-			inStock: product.inStock,
 			savingPercentage: product.savingPercentage,
 			metaTitle: product.metaTitle,
 			metaDescription: product.metaDescription,

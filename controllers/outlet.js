@@ -1,6 +1,8 @@
 import Outlet from '../models/Outlet.js';
 import Transaction from '../models/Transaction.js';
 import Product from '../models/Product.js';
+import Invoice from '../models/Invoice.js';
+import Payment from '../models/Payment.js';
 import { generateOutletId } from '../utils/generateId.js';
 
 export const createOutlet = async (req, res) => {
@@ -70,9 +72,31 @@ export const getOutletById = async (req, res) => {
 			});
 		}
 
-		const outletProducts = await Product.find({outletId : id});
-		const outletTransactions = [];
-		const lowStockProducts = [];
+		const outletProducts = await Product.find({ outletId: id });
+		const lowStockProducts = await Product.find({
+			outletId: id,
+			stock: { $lte: 10 },
+		
+		});
+		const totalProductWorth = await Product.aggregate([
+			{
+				$match: {
+					outletId: id,
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					totalWorth: {
+						$sum: { $multiply: ['$price', '$stock'] },
+					},
+				},
+			},
+		]);
+
+		const outletTransactions = await Invoice.find({
+			outletId: id,
+		});
 
 		res.status(201).json({
 			success: true,
@@ -83,8 +107,9 @@ export const getOutletById = async (req, res) => {
 				outletTransactions,
 				lowStockProducts,
 				totalProducts: outletProducts.length,
+				currentProducts: totalProductWorth[0]?.totalWorth || 0,
 				totalOrders: 0,
-				totalSales: 10,
+				totalSales: 0,
 			},
 		});
 	} catch (error) {

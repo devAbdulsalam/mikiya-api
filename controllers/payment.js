@@ -6,8 +6,8 @@ import { uploadBufferToCloudinary } from '../utils/uploadAndExtractImageUrls.js'
 export const getPayments = async (req, res) => {
 	try {
 		const payments = await Payment.find()
-			.populate('invoiceId')
-			.populate('customerId')
+			.populate('invoiceId', 'outletId status')
+			.populate('customerId', 'name phone email address')
 			.populate('createdBy', 'username email');
 
 		res.json({ success: true, payments });
@@ -66,12 +66,10 @@ export const newPayment = async (req, res) => {
 			createdBy: req.user._id,
 		});
 
-		await payment.save();
-
 		// --- Update customer debt ---
 		const paymentAmount = Number(amount);
-		let currentDebt = Number(customer.creditInfo.currentDebt || 0);
-		let creditBalance = Number(customer.creditInfo.creditBalance || 0);
+		let currentDebt = Number(customer.currentDebt || 0);
+		let creditBalance = Number(customer.creditBalance || 0);
 
 		currentDebt -= paymentAmount;
 
@@ -80,9 +78,10 @@ export const newPayment = async (req, res) => {
 			currentDebt = 0;
 		}
 
-		customer.creditInfo.currentDebt = currentDebt;
-		customer.creditInfo.creditBalance = creditBalance;
+		customer.currentDebt = currentDebt;
+		customer.creditBalance = creditBalance;
 
+		await payment.save();
 		await customer.save();
 
 		// --- Update invoice if linked ---

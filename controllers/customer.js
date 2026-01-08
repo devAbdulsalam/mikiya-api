@@ -1,6 +1,8 @@
 import Customer from '../models/Customer.js';
 import Invoice from '../models/Invoice.js';
 import Payment from '../models/Payment.js';
+import Business from '../models/Business.js';
+import Outlet from '../models/Outlet.js';
 
 export const getCustomers = async (req, res) => {
 	try {
@@ -49,14 +51,18 @@ export const createCustomer = async (req, res) => {
 	try {
 		const customerData = {
 			...req.body,
-			createdBy: req.user.id,
+			createdBy: req.user._id,
 			outletId: req.body.outletId || req.user.outletId,
 		};
+		// console.log('req.user', req.user);
 
+		const business = await Business.findOne({ _id: req.user.businessId });
+		console.log('business', business);
 		// Generate customer ID
 		const timestamp = Date.now();
 		const random = Math.floor(Math.random() * 1000);
 		customerData.customerId = `CUST-${timestamp}-${random}`;
+		customerData.businessId = business._id;
 
 		const customer = new Customer(customerData);
 		await customer.save();
@@ -92,9 +98,14 @@ export const getCustomerById = async (req, res) => {
 			{ $match: { customerId: id } },
 			{ $group: { _id: null, total: { $sum: '$amount' } } },
 		]);
-		const transactions = await Payment.find({ customerId: id })
-			.populate('invoiceId', 'status customerId')
-			.populate('invoiceId.outletId', 'name');
+		const transactions = await Payment.find({ customerId: id }).populate({
+			path: 'invoiceId',
+			select: 'status customerId outletId',
+			populate: {
+				path: 'outletId',
+				select: 'name',
+			},
+		});
 		const totalDebt = await Invoice.aggregate([
 			{ $match: { customerId: id, balance: { $gt: 0 } } }, // only invoices with unpaid debt
 			{ $group: { _id: null, total: { $sum: '$balance' } } },

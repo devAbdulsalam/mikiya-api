@@ -15,15 +15,16 @@ export const getBusinessDashboard = async (req, res) => {
 
 		// Fetch invoices with all necessary population
 
+		console.log('businessId:', businessId);
 		// Fetch data in parallel for performance
 		const [
 			business,
 			transactions,
 			totalCustomers,
 			totalProducts,
+			totalProductWorth,
 			totalOutlets,
-			totalSales,
-			outStandingDebt,
+			summary,
 		] = await Promise.all([
 			Business.findById(businessId),
 			Invoice.find({ businessId })
@@ -34,16 +35,40 @@ export const getBusinessDashboard = async (req, res) => {
 				.populate('items.productId', 'title price'),
 			Customer.countDocuments({ businessId }),
 			Product.countDocuments({ businessId }),
-			Outlet.countDocuments({ businessId }),
-			Payment.aggregate([
-				{ $match: { businessId } },
-				{ $group: { _id: null, total: { $sum: '$amount' } } },
+			Product.aggregate([
+				{
+					$match: {
+						businessId,
+					},
+				},
+				{
+					$group: {
+						_id: null,
+						totalWorth: {
+							$sum: { $multiply: ['$price', '$stock'] },
+						},
+					},
+				},
 			]),
+			Outlet.countDocuments({ businessId }),
 			Invoice.aggregate([
-				{ $match: { businessId, balance: { $gt: 0 } } }, // only invoices with unpaid debt
-				{ $group: { _id: null, total: { $sum: '$balance' } } },
+				{ $match: { businessId } },
+				{
+					$group: {
+						_id: null,
+						totalSales: { $sum: '$total' },
+						totalDebt: {
+							$sum: {
+								$cond: [{ $gt: ['$balance', 0] }, '$balance', 0],
+							},
+						},
+					},
+				},
 			]),
 		]);
+
+		const totalSales = summary[0]?.totalSales || 0;
+		const totalOutStandingDebt = summary[0]?.totalDebt || 0;
 
 		// Example static charts/data
 		const salesTrends = [
@@ -59,23 +84,27 @@ export const getBusinessDashboard = async (req, res) => {
 			{ name: 'Main Store', sales: 45000 },
 			{ name: 'Business District Branch', sales: 38000 },
 			{ name: 'Wholesale Center', sales: 78000 },
+			{ name: 'Main Store2', sales: 45000 },
+			{ name: 'Business District Branch2', sales: 38000 },
+			{ name: 'Wholesale Center2', sales: 78000 },
 		];
 
-		console.log('Dashboard data fetched successfully.');
-		console.log('Outstanding debt:', outStandingDebt[0]?.total);
-		console.log('Total sales:', totalSales[0]?.total);
-		console.log('businessId:', businessId);
+		// console.log('Dashboard data fetched successfully.');
+		// console.log('businessId:', businessId);
+		console.log('Outstanding debt:', totalOutStandingDebt);
+		console.log('Total sales:', totalSales);
 
 		const dashboardData = {
-			totalSales: totalSales[0]?.total || 20000,
+			totalSales,
+			totalOutStandingDebt,
 			totalCustomers,
 			totalProducts,
 			totalOutlets,
 			transactions,
-			totalOutStandingDebt: outStandingDebt[0]?.total || 5000,
 			outletPerformance,
 			salesTrends,
-			business
+			business,
+			currentProducts: totalProductWorth[0]?.totalWorth || 0,
 		};
 
 		res.status(200).json(dashboardData);
@@ -89,7 +118,7 @@ export const getDebtStats = async (req, res) => {
 	try {
 		const businessId = req.params.id;
 		const outstanding = await Invoice.aggregate([
-			{ $match: {businessId, balance: { $gt: 0 } } },
+			{ $match: { businessId, balance: { $gt: 0 } } },
 			{ $group: { _id: null, total: { $sum: '$balance' } } },
 		]);
 

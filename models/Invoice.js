@@ -33,11 +33,10 @@ const invoiceSchema = new mongoose.Schema({
 	items: [
 		{
 			productId: mongoose.Types.ObjectId,
-			productName: String,
+			title: String,
 			price: Number,
-			description: String,
 			quantity: Number,
-			total: Number,
+			subtotal: Number,
 		},
 	],
 	subtotal: Number,
