@@ -6,10 +6,10 @@ import Fund from '../../models/Fund.js';
 import Project from '../../models/Project.js';
 import { auth, authorize } from '../../middlewares/auth.js';
 import { validate } from '../../middlewares/validation.js';
-import {
-	expenseValidation,
-	updateExpenseValidation,
-} from '../../middlewares/foundationValidation.js';
+// import {
+// 	expenseValidation,
+// 	updateExpenseValidation,
+// } from '../../middlewares/foundationValidation.js';
 
 const router = express.Router();
 
@@ -294,7 +294,7 @@ router.post(
 	'/',
 	auth,
 	authorize('admin', 'manager', 'staff'),
-	validate(expenseValidation),
+	// validate(expenseValidation),
 	async (req, res) => {
 		try {
 			const expenseData = req.body;
@@ -414,7 +414,7 @@ router.put(
 	'/:id',
 	auth,
 	authorize('admin', 'manager'),
-	validate(updateExpenseValidation),
+	// validate(updateExpenseValidation),
 	async (req, res) => {
 		try {
 			const { id } = req.params;

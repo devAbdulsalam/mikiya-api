@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Transaction from '../models/Transaction.js';
 import Customer from '../models/Customer.js';
 import Product from '../models/Product.js';
@@ -7,6 +8,147 @@ import Invoice from '../models/Invoice.js';
 import Business from '../models/Business.js';
 import Order from '../models/Order.js';
 import Debt from '../models/Debt.js';
+import Donation from '../models/Donation.js';
+import Project from '../models/Project.js';
+import Fund from '../models/Fund.js';
+import FoundationExpense from '../models/FoundationExpense.js';
+
+export const cashFlow = async (req, res) => {
+	const { foundationId } = req.query;
+
+	const income = await Fund.aggregate([
+		{ $match: { foundationId, isDeleted: false } },
+		{ $group: { _id: null, totalIncome: { $sum: '$amount' } } },
+	]);
+
+	const expenses = await FoundationExpense.aggregate([
+		{ $match: { foundationId, isDeleted: false, status: 'paid' } },
+		{ $group: { _id: null, totalExpense: { $sum: '$amount' } } },
+	]);
+
+	res.json({
+		income: income[0]?.totalIncome || 0,
+		expenses: expenses[0]?.totalExpense || 0,
+		balance: (income[0]?.totalIncome || 0) - (expenses[0]?.totalExpense || 0),
+	});
+};
+
+export const fundSummary = async (req, res) => {
+	const { foundationId } = req.query;
+
+	const summary = await Fund.aggregate([
+		{ $match: { foundationId, isDeleted: false } },
+		{
+			$group: {
+				_id: '$sourceType',
+				total: { $sum: '$amount' },
+			},
+		},
+	]);
+
+	res.json(summary);
+};
+
+export const monthlyFinance = async (req, res) => {
+	const { foundationId, year } = req.query;
+
+	const income = await Fund.aggregate([
+		{ $match: { foundationId, isDeleted: false } },
+		{
+			$project: {
+				amount: 1,
+				month: { $month: '$receivedDate' },
+				year: { $year: '$receivedDate' },
+			},
+		},
+		{ $match: { year: Number(year) } },
+		{
+			$group: {
+				_id: '$month',
+				income: { $sum: '$amount' },
+			},
+		},
+	]);
+
+	const expenses = await FoundationExpense.aggregate([
+		{ $match: { foundationId, isDeleted: false, status: 'paid' } },
+		{
+			$project: {
+				amount: 1,
+				month: { $month: '$date' },
+				year: { $year: '$date' },
+			},
+		},
+		{ $match: { year: Number(year) } },
+		{
+			$group: {
+				_id: '$month',
+				expenses: { $sum: '$amount' },
+			},
+		},
+	]);
+
+	res.json({ income, expenses });
+};
+
+export const projectBudgetHealth = async (req, res) => {
+	const projects = await Project.aggregate([
+		{ $match: { foundationId: req.query.foundationId, isDeleted: false } },
+		{
+			$project: {
+				name: 1,
+				budget: 1,
+				spent: 1,
+				remaining: { $subtract: ['$budget', '$spent'] },
+				usagePercent: {
+					$cond: [
+						{ $gt: ['$budget', 0] },
+						{ $multiply: [{ $divide: ['$spent', '$budget'] }, 100] },
+						0,
+					],
+				},
+			},
+		},
+	]);
+
+	res.json(projects);
+};
+
+export const expenseByCategory = async (req, res) => {
+	const data = await Expense.aggregate([
+		{
+			$match: {
+				foundationId: req.query.foundationId,
+				isDeleted: false,
+				status: 'paid',
+			},
+		},
+		{
+			$group: {
+				_id: '$category',
+				total: { $sum: '$amount' },
+			},
+		},
+	]);
+
+	res.json(data);
+};
+
+export const topDonors = async (req, res) => {
+	const donors = await Donation.aggregate([
+		{ $match: { foundationId: req.query.foundationId, isDeleted: false } },
+		{
+			$group: {
+				_id: '$donorId',
+				totalDonated: { $sum: '$amount' },
+			},
+		},
+		{ $sort: { totalDonated: -1 } },
+		{ $limit: 10 },
+	]);
+
+	res.json(donors);
+};
 
 export const getBusinessDashboard = async (req, res) => {
 	try {
@@ -24,7 +166,7 @@ export const getBusinessDashboard = async (req, res) => {
 			totalProducts,
 			totalProductWorth,
 			totalOutlets,
-			summary,
+			invoiceSummary,
 		] = await Promise.all([
 			Business.findById(businessId),
 			Invoice.find({ businessId })
@@ -52,7 +194,7 @@ export const getBusinessDashboard = async (req, res) => {
 			]),
 			Outlet.countDocuments({ businessId }),
 			Invoice.aggregate([
-				{ $match: { businessId } },
+				{ $match: { businessId: new mongoose.Types.ObjectId(businessId) } },
 				{
 					$group: {
 						_id: null,
@@ -67,8 +209,38 @@ export const getBusinessDashboard = async (req, res) => {
 			]),
 		]);
 
-		const totalSales = summary[0]?.totalSales || 0;
-		const totalOutStandingDebt = summary[0]?.totalDebt || 0;
+		const totalSales = invoiceSummary[0]?.totalSales || 0;
+		const totalOutStandingDebt = invoiceSummary[0]?.totalDebt || 0;
+
+		const [summary] = await Payment.aggregate([
+			{
+				$match: {
+					businessId: new mongoose.Types.ObjectId(businessId),
+				},
+			},
+			{
+				$group: {
+					_id: null,
+					totalPayment: { $sum: '$amount' },
+					totalTransactions: { $sum: 1 },
+					avgPayment: { $avg: '$amount' },
+					cashTotal: {
+						$sum: { $cond: [{ $eq: ['$method', 'cash'] }, '$amount', 0] },
+					},
+					cardTotal: {
+						$sum: { $cond: [{ $eq: ['$method', 'card'] }, '$amount', 0] },
+					},
+				},
+			},
+		]);
+
+		const result = {
+			totalPayment: summary?.totalPayment || 0,
+			totalTransactions: summary?.totalTransactions || 0,
+			avgPayment: summary?.avgPayment || 0,
+			cashTotal: summary?.cashTotal || 0,
+			cardTotal: summary?.cardTotal || 0,
+		};
 
 		// Example static charts/data
 		const salesTrends = [
@@ -105,6 +277,7 @@ export const getBusinessDashboard = async (req, res) => {
 			salesTrends,
 			business,
 			currentProducts: totalProductWorth[0]?.totalWorth || 0,
+			result,
 		};
 
 		res.status(200).json(dashboardData);
@@ -134,7 +307,12 @@ export const getDebtStats = async (req, res) => {
 				.populate('customerId', 'name phone email')
 				.populate('items.productId', 'title price'),
 			Invoice.aggregate([
-				{ $match: { businessId, status: { $ne: 'paid' } } },
+				{
+					$match: {
+						businessId: new mongoose.Types.ObjectId(businessId),
+						status: { $ne: 'paid' },
+					},
+				},
 				{ $group: { _id: null, total: { $sum: '$balance' } } },
 			]),
 		]);

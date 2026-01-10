@@ -10,15 +10,14 @@ export const getAllInvoices = async (req, res) => {
 	try {
 		// Fetch invoices with all necessary population
 		const invoices = await Invoice.find()
-			// .select('amounts createdAt dueDate status')
 			.sort({ createdAt: -1 })
 			.populate('outletId', 'name address')
-			.populate('customerId', 'name phone email address')
-			.populate('items.productId', 'title price');
+			.populate('items.productId', 'title price')
+			.populate('customerId', 'name phone email address');
 
 		// Compute totals dynamically
 		const totalInvoices = invoices.length;
-		const totalSales = invoices.reduce((sum, inv) => sum + inv.total, 0);
+		const totalSales = invoices?.reduce((sum, inv) => sum + inv.total, 0);
 		const totalOrders = invoices.reduce(
 			(sum, inv) => sum + inv.items.length,
 			0
@@ -30,6 +29,13 @@ export const getAllInvoices = async (req, res) => {
 			(inv) => inv.status !== 'paid'
 		).length;
 
+		const totalPendingOrders = invoices
+			.filter((inv) => inv.status !== 'paid')
+			.reduce((sum, inv) => sum + inv.balance, 0);
+
+		const totalCompletedOrders = invoices
+			.filter((inv) => inv.status === 'paid')
+			.reduce((sum, inv) => sum + inv.amountPaid, 0);
 		res.json({
 			success: true,
 			message: 'Invoices fetched successfully',
@@ -38,8 +44,10 @@ export const getAllInvoices = async (req, res) => {
 			totalSales,
 			totalOrders,
 			completedOrders,
+			totalCompletedOrders,
 			pendingOrders,
 			invoices,
+			totalPendingOrders,
 		});
 	} catch (error) {
 		res.status(500).json({
@@ -94,9 +102,9 @@ export const getOrderStats = async (req, res) => {
 
 export const newInvoice = async (req, res) => {
 	const session = await mongoose.startSession();
-	session.startTransaction();
 
 	try {
+		session.startTransaction();
 		const {
 			outletId,
 			customerId,
@@ -109,24 +117,16 @@ export const newInvoice = async (req, res) => {
 			amountPaid,
 		} = req.body;
 
-		// console.log('items', req.body.items);
+		console.log('items', req.body.items);
 		let items = req.body.items;
-		if (!Array.isArray(items) || items.length === 0) {
-			throw new Error('Invoice items are invalid or empty');
-		}
-		if (Array.isArray(items)) {
-			// If array of JSON strings → parse each
-			items = items.map((item) =>
-				typeof item === 'string' ? JSON.parse(item) : item
-			);
 
-			// Flatten in case each entry is an array
-			items = items.flat();
-		} else if (typeof items === 'string') {
-			// If single JSON string
-			items = JSON.parse(items);
+		if (!items) {
+			throw new Error('Invoice items are missing');
 		}
-		console.log('invoice items', items);
+
+		items = Array.isArray(items) ? items : JSON.parse(items);
+
+		console.log('Final invoice items:', items);
 		const paymentInfo = req.body.paymentInfo
 			? JSON.parse(req.body.paymentInfo)
 			: null;
@@ -145,7 +145,7 @@ export const newInvoice = async (req, res) => {
 		const products = await Product.find({ _id: { $in: productIds } }).session(
 			session
 		);
-
+		console.log('productIds', productIds);
 		for (const item of items) {
 			const product = products.find((p) => p._id.toString() === item.productId);
 			if (!product) throw new Error(`Product ${item.productId} not found`);
@@ -196,16 +196,8 @@ export const newInvoice = async (req, res) => {
 			],
 			{ session }
 		);
-		let receipt;
-		if (req.file) {
-			receipt = await uploadBufferToCloudinary(
-				req.file.buffer,
-				`receipt_${invoice[0]._id}`
-			);
-			console.log('receipt', receipt);
-		} else {
-			receipt = null;
-		}
+		let receipt = null;
+
 		// ===== Payment Record =====
 		if (amountPaid > 0) {
 			await Payment.create(
@@ -217,7 +209,6 @@ export const newInvoice = async (req, res) => {
 						method: paymentInfo?.method || paymentMethod,
 						reference: paymentInfo?.reference || null,
 						date: paymentInfo?.date || new Date(),
-						receipt,
 						createdBy: req.user._id,
 					},
 				],
@@ -255,7 +246,14 @@ export const newInvoice = async (req, res) => {
 		);
 		// ===== Commit Transaction =====
 		await session.commitTransaction();
-		session.endSession();
+		if (req.file) {
+			receipt = await uploadBufferToCloudinary(
+				req.file.buffer,
+				`receipt_${invoice[0]._id}`
+			);
+
+			await Payment.updateOne({ invoiceId: invoice[0]._id }, { receipt });
+		}
 
 		return res.status(201).json({ success: true, invoice: invoice[0] });
 	} catch (error) {
