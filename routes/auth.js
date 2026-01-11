@@ -196,7 +196,7 @@ router.post('/login', validate(loginValidation), async (req, res) => {
 		// console.log('password', user.password);
 
 		// Verify password
-		const isPasswordValid = await await bcrypt.compare(password, user.password);
+		const isPasswordValid = await bcrypt.compare(password, user.password);
 		// const isPasswordValid = await await bcrypt.compare(password, newPassword);
 
 		if (!isPasswordValid) {
@@ -275,7 +275,12 @@ router.post(
 			const user = await User.findById(req.user.id).select('+password');
 
 			// Verify current password
-			const isPasswordValid = await user.comparePassword(currentPassword);
+			// const isPasswordValid = await user.comparePassword(currentPassword);
+
+			const isPasswordValid = await bcrypt.compare(
+				currentPassword,
+				user.password
+			);
 			if (!isPasswordValid) {
 				return res.status(400).json({
 					success: false,
@@ -293,8 +298,9 @@ router.post(
 				});
 			}
 
+			const hashedPassword = await bcrypt.hash(newPassword, 12);
 			// Update password
-			user.password = newPassword;
+			user.password = hashedPassword;
 			await user.save();
 
 			res.json({
