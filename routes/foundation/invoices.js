@@ -7,13 +7,14 @@ import {
 	updateInvoice,
 	deleteInvoice,
 } from '../../controllers/foundationInvoice.js';
+import { auth, authorize } from '../../middlewares/auth.js';
 
 const router = express.Router();
 
-router.post('/', createInvoice);
-router.get('/', getInvoices);
-router.get('/:id', getInvoiceById);
-router.put('/:id', updateInvoice);
-router.delete('/:id', deleteInvoice);
+router.post('/', auth, createInvoice);
+router.get('/', auth, getInvoices);
+router.get('/:id', auth, getInvoiceById);
+router.put('/:id', auth, updateInvoice);
+router.delete('/:id', auth, deleteInvoice);
 
 export default router;

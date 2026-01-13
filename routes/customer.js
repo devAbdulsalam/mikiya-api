@@ -8,6 +8,7 @@ import {
 	getCustomers,
 	updateCustomer,
 	updateCustomerDebt,
+	updateCustomerCredit,
 } from '../controllers/customer.js';
 
 const router = express.Router();
@@ -22,7 +23,8 @@ router.get('/debtors', auth, getCustomerDebtors);
 router.post('/', auth, createCustomer);
 
 // Update customer debt (when transaction is made)
-router.put('/:id/debt', auth, updateCustomerDebt);
+router.put('/:id/debit', auth, updateCustomerDebt);
+router.put('/:id/credit', auth, updateCustomerCredit);
 
 router.get('/:id', auth, getCustomerById);
 

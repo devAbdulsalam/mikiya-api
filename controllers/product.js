@@ -7,8 +7,10 @@ import cloudinary, {
 	deleteImage,
 } from '../config/cloudinary.js';
 import { formatCurrency } from '../utils/helpers.js';
-
-import { uploadAndExtractImageUrls } from '../utils/uploadAndExtractImageUrls.js';
+import {
+	uploadBufferToCloudinary,
+	uploadAndExtractImageUrls,
+} from '../utils/uploadAndExtractImageUrls.js';
 
 export const createProduct = async (req, res) => {
 	try {
@@ -139,25 +141,6 @@ export const createProduct = async (req, res) => {
 	} catch (error) {
 		console.error('Create Product Error:', error);
 
-		// Clean up uploaded files if there was an error
-		if (req.files) {
-			try {
-				const files = req.files;
-				if (files.banner?.[0]?.path) {
-					const publicId = getPublicIdFromUrl(files.banner[0].path);
-					if (publicId) await deleteImage(publicId);
-				}
-				if (files.images) {
-					for (const file of files.images) {
-						const publicId = getPublicIdFromUrl(file.path);
-						if (publicId) await deleteImage(publicId);
-					}
-				}
-			} catch (cleanupError) {
-				console.error('Error cleaning up uploaded files:', cleanupError);
-			}
-		}
-
 		// Handle duplicate key error
 		if (error.code === 11000) {
 			return res.status(400).json({
@@ -193,15 +176,11 @@ export const updateProduct = async (req, res) => {
 	try {
 		const { id } = req.params;
 		const updateData = { ...req.body };
-		const files = req.files || {};
 
-		// Find the product
-		let product;
-		if (mongoose.Types.ObjectId.isValid(id)) {
-			product = await Product.findById(id);
-		} else {
-			product = await Product.findOne({ productId: id });
-		}
+		// 1️⃣ Find product by MongoID or productId
+		const product = mongoose.Types.ObjectId.isValid(id)
+			? await Product.findById(id)
+			: await Product.findOne({ productId: id });
 
 		if (!product) {
 			return res.status(404).json({
@@ -210,145 +189,68 @@ export const updateProduct = async (req, res) => {
 			});
 		}
 
-		// Check if user has permission to update this product
-		if (
-			req.user.role !== 'admin' &&
-			product.createdBy.toString() !== req.user.id
-		) {
-			return res.status(403).json({
-				success: false,
-				message: 'You do not have permission to update this product',
-			});
-		}
-
-		// Extract image URLs from request
-		const newImages = extractImageUrls(req);
-
-		// Handle banner update
-		if (files.banner?.[0]) {
-			updateData.banner = files.banner[0].path;
-		} else if (req.body.banner) {
-			updateData.banner = req.body.banner;
-		}
-
-		// Handle gallery images update
-		if (files.images || req.body.images) {
-			const galleryImages = [];
-
-			// Add new uploaded images
-			if (files.images) {
-				files.images.forEach((file) => {
-					galleryImages.push(file.path);
-				});
-			}
-
-			// Add existing images from request body
-			if (req.body.images && Array.isArray(req.body.images)) {
-				galleryImages.push(...req.body.images);
-			}
-
-			updateData.images = galleryImages;
-		}
-
-		// Handle stock update
+		// 2️⃣ Stock & status handling
 		if (updateData.stock !== undefined) {
-			// If stock is being set to 0, update status
-			if (updateData.stock <= 0) {
+			const stock = Number(updateData.stock);
+
+			if (stock <= 0) {
+				updateData.stock = 0;
 				updateData.status = 'out_of_stock';
-			} else if (product.status === 'out_of_stock') {
+			} else {
 				updateData.status = 'active';
 			}
 		}
 
-		// Handle discount update
-		if (updateData.discount !== undefined || updateData.price !== undefined) {
+		// 3️⃣ Price / Discount logic
+		if (updateData.price !== undefined || updateData.discount !== undefined) {
 			const price =
-				updateData.price !== undefined ? updateData.price : product.price;
+				updateData.price !== undefined
+					? Number(updateData.price)
+					: product.price;
+
 			const discount =
 				updateData.discount !== undefined
-					? updateData.discount
-					: product.discount;
+					? Number(updateData.discount)
+					: product.discount || 0;
 
-			if (discount > 0) {
-				updateData.isOnSale = true;
-			} else {
-				updateData.isOnSale = false;
+			// Prevent invalid discount
+			if (discount < 0 || discount > price) {
+				return res.status(400).json({
+					success: false,
+					message: 'Invalid discount value',
+				});
 			}
 
-			// Calculate discounted price
+			updateData.discount = discount;
+			updateData.isOnSale = discount > 0;
 			updateData.discountedPrice = price - discount;
 		}
 
-		// Update outlet information if provided
-		if (updateData.outlet) {
-			const outlet = await Outlet.findOne({ outletId: updateData.outlet });
-			if (outlet) {
-				updateData.outletId = outlet._id;
-
-				// Update or add to outlets array
-				const outletIndex = product.outlets.findIndex(
-					(o) => o.outletId.toString() === outlet._id.toString()
-				);
-
-				if (outletIndex > -1) {
-					// Update existing outlet
-					if (updateData.price !== undefined) {
-						product.outlets[outletIndex].price = updateData.price;
-					}
-					if (updateData.stock !== undefined) {
-						product.outlets[outletIndex].stock = updateData.stock;
-					}
-					if (updateData.discount !== undefined) {
-						product.outlets[outletIndex].discount = updateData.discount;
-					}
-					updateData.outlets = product.outlets;
-				} else {
-					// Add new outlet
-					product.outlets.push({
-						outletId: outlet._id,
-						outletName: outlet.name,
-						stock: updateData.stock || 0,
-						price: updateData.price || product.price,
-						discount: updateData.discount || product.discount,
-						isAvailable: true,
-					});
-					updateData.outlets = product.outlets;
-				}
-			}
+		// 4️⃣ Bestseller logic
+		if (updateData.sold !== undefined) {
+			updateData.isBestSeller = Number(updateData.sold) >= 100;
 		}
 
-		// Set updatedBy
-		updateData.updatedBy = req.user.id;
+		// 5️⃣ Audit fields
+		updateData.updatedBy = req.user._id;
 		updateData.updatedAt = new Date();
+		updateData.businessId = new mongoose.Types.ObjectId(req.body.businessId);
+		updateData.outletId = new mongoose.Types.ObjectId(req.body.outletId);
 
-		// Check for bestseller update
-		if (updateData.sold !== undefined && updateData.sold > 100) {
-			updateData.isBestSeller = true;
-		}
-
-		// Delete old images if they're being replaced
-		const oldBanner = product.banner;
-		const oldImages = product.images;
-
-		// Update the product
+		console.log('updateData', updateData);
+		// 6️⃣ Update product
 		const updatedProduct = await Product.findByIdAndUpdate(
-			product._id,
+			{
+				_id: new mongoose.Types.ObjectId(id),
+			},
 			{ $set: updateData },
 			{ new: true, runValidators: true }
 		)
-			.populate('outletId', 'name outletId type')
+			.populate('outletId', 'name')
 			.populate('updatedBy', 'username email');
 
-		// Delete old images from Cloudinary after successful update
-		if (updatedProduct) {
-			await deleteOldImages(
-				product,
-				updatedProduct.banner,
-				updatedProduct.images
-			);
-		}
-
-		res.json({
+		console.log('updatedProduct', updatedProduct);
+		return res.status(200).json({
 			success: true,
 			message: 'Product updated successfully',
 			product: updatedProduct,
@@ -356,35 +258,16 @@ export const updateProduct = async (req, res) => {
 	} catch (error) {
 		console.error('Update Product Error:', error);
 
-		// Clean up uploaded files if there was an error
-		if (req.files) {
-			try {
-				const files = req.files;
-				if (files.banner?.[0]?.path) {
-					const publicId = getPublicIdFromUrl(files.banner[0].path);
-					if (publicId) await deleteImage(publicId);
-				}
-				if (files.images) {
-					for (const file of files.images) {
-						const publicId = getPublicIdFromUrl(file.path);
-						if (publicId) await deleteImage(publicId);
-					}
-				}
-			} catch (cleanupError) {
-				console.error('Error cleaning up uploaded files:', cleanupError);
-			}
-		}
-
-		// Handle duplicate key error
+		// Duplicate key error
 		if (error.code === 11000) {
 			return res.status(400).json({
 				success: false,
-				message: 'Product ID already exists',
+				message: 'Duplicate value detected',
 				error: error.keyValue,
 			});
 		}
 
-		// Handle validation errors
+		// Validation errors
 		if (error.name === 'ValidationError') {
 			const errors = Object.values(error.errors).map((err) => ({
 				field: err.path,
@@ -398,9 +281,76 @@ export const updateProduct = async (req, res) => {
 			});
 		}
 
-		res.status(500).json({
+		return res.status(500).json({
 			success: false,
 			message: 'Failed to update product',
+			error: error.message,
+		});
+	}
+};
+
+export const updateProductImages = async (req, res) => {
+	try {
+		const { id } = req.params;
+
+		const product = await Product.findById(id);
+		if (!product) {
+			return res.status(404).json({ message: 'Product not found' });
+		}
+
+		/**
+		 * EXISTING IMAGES (URLs sent from frontend)
+		 * comes as JSON string
+		 */
+		let existingImages = [];
+		if (req.body.existingImages) {
+			existingImages = JSON.parse(req.body.existingImages);
+		}
+
+		/**
+		 * 1. BANNER UPDATE
+		 */
+		let bannerUrl = product.banner;
+
+		if (req.files?.banner?.[0]) {
+			const uploadedBanner = await uploadBufferToCloudinary(
+				req.files.banner[0].buffer,
+				`banner-${Date.now()}`
+			);
+			bannerUrl = uploadedBanner.secure_url;
+		}
+
+		/**
+		 * 2. GALLERY IMAGES UPDATE
+		 */
+		let newImageUrls = [];
+
+		if (req.files?.images?.length) {
+			const uploads = await Promise.all(
+				req.files.images.map((file) =>
+					uploadBufferToCloudinary(file.buffer, `image-${Date.now()}`)
+				)
+			);
+
+			newImageUrls = uploads.map((img) => img.secure_url);
+		}
+
+		/**
+		 * FINAL MERGE
+		 */
+		product.banner = bannerUrl;
+		product.images = [...existingImages, ...newImageUrls];
+
+		await product.save();
+
+		res.status(200).json({
+			message: 'Product images updated successfully',
+			product,
+		});
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({
+			message: 'Failed to update product images',
 			error: error.message,
 		});
 	}
@@ -757,17 +707,6 @@ export const addProductImages = async (req, res) => {
 			});
 		}
 
-		// Check permission
-		if (
-			req.user.role !== 'admin' &&
-			product.createdBy.toString() !== req.user.id
-		) {
-			return res.status(403).json({
-				success: false,
-				message: 'You do not have permission to update this product',
-			});
-		}
-
 		// Add new images
 		const newImages = req.files?.map((file) => file.path) || [];
 		product.images.push(...newImages);
@@ -784,20 +723,6 @@ export const addProductImages = async (req, res) => {
 			totalImages: product.images.length,
 		});
 	} catch (error) {
-		console.error('Add Images Error:', error);
-
-		// Clean up uploaded files
-		if (req.files) {
-			try {
-				for (const file of req.files) {
-					const publicId = getPublicIdFromUrl(file.path);
-					if (publicId) await deleteImage(publicId);
-				}
-			} catch (cleanupError) {
-				console.error('Error cleaning up uploaded files:', cleanupError);
-			}
-		}
-
 		res.status(500).json({
 			success: false,
 			message: 'Failed to add images',

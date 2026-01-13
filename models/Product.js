@@ -89,6 +89,9 @@ const productSchema = new mongoose.Schema(
 			type: String,
 			trim: true,
 		},
+		unit: {
+			type: String,
+		},
 		tags: [
 			{
 				type: String,

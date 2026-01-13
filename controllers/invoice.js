@@ -5,7 +5,7 @@ import Customer from '../models/Customer.js';
 import Outlet from '../models/Outlet.js';
 import Payment from '../models/Payment.js';
 import { uploadBufferToCloudinary } from '../utils/uploadAndExtractImageUrls.js';
-
+const vat = 0;
 export const getAllInvoices = async (req, res) => {
 	try {
 		// Fetch invoices with all necessary population
@@ -113,11 +113,11 @@ export const newInvoice = async (req, res) => {
 			total,
 			paymentMethod,
 			paymentTerms,
-			note,
+			notes,
 			amountPaid,
 		} = req.body;
 
-		console.log('items', req.body.items);
+		// console.log('items', req.body.items);
 		let items = req.body.items;
 
 		if (!items) {
@@ -126,7 +126,7 @@ export const newInvoice = async (req, res) => {
 
 		items = Array.isArray(items) ? items : JSON.parse(items);
 
-		console.log('Final invoice items:', items);
+		// console.log('Final invoice items:', items);
 		const paymentInfo = req.body.paymentInfo
 			? JSON.parse(req.body.paymentInfo)
 			: null;
@@ -145,7 +145,7 @@ export const newInvoice = async (req, res) => {
 		const products = await Product.find({ _id: { $in: productIds } }).session(
 			session
 		);
-		console.log('productIds', productIds);
+		// console.log('productIds', productIds);
 		for (const item of items) {
 			const product = products.find((p) => p._id.toString() === item.productId);
 			if (!product) throw new Error(`Product ${item.productId} not found`);
@@ -158,16 +158,6 @@ export const newInvoice = async (req, res) => {
 
 		// ===== Invoice Logic =====
 		const balance = total - amountPaid;
-
-		// if (balance > 0) {
-		// 	if (!customer.creditEnabled) {
-		// 		throw new Error('Customer credit is disabled');
-		// 	}
-
-		// 	if (customer.currentDebt + balance > customer.creditLimit) {
-		// 		throw new Error('Credit limit exceeded');
-		// 	}
-		// }
 
 		const status =
 			balance <= 0 ? 'paid' : amountPaid > 0 ? 'partial' : 'unpaid';
@@ -187,7 +177,7 @@ export const newInvoice = async (req, res) => {
 					tax,
 					total,
 					paymentTerms,
-					note,
+					notes,
 					amountPaid,
 					balance,
 					status,
@@ -283,24 +273,169 @@ export const getInvoiceById = async (req, res) => {
 	}
 };
 export const updateInvoice = async (req, res) => {
+	const session = await mongoose.startSession();
+
 	try {
-		const invoice = await Invoice.findByIdAndUpdate(req.params.id, req.body, {
-			new: true,
-		});
-		if (!invoice) {
-			return res.status(404).json({ error: 'Invoice not found' });
+		session.startTransaction();
+
+		const { id } = req.params;
+		const {
+			items: rawItems,
+			amountPaid = 0,
+			paymentMethod,
+			paymentInfo,
+			customerId,
+			notes,
+			paymentTerms,
+		} = req.body;
+
+		if (!rawItems) throw new Error('Invoice items are required');
+
+		const items = Array.isArray(rawItems) ? rawItems : JSON.parse(rawItems);
+
+		// ===== Fetch Existing Invoice =====
+		const existingInvoice = await Invoice.findById(id).session(session);
+		if (!existingInvoice) {
+			await session.abortTransaction();
+			return res
+				.status(404)
+				.json({ success: false, error: 'Invoice not found' });
 		}
-		res.json(invoice);
+
+		// ===== Restore Old Stock =====
+		for (const oldItem of existingInvoice.items) {
+			await Product.findByIdAndUpdate(
+				oldItem.productId,
+				{ $inc: { stock: oldItem.quantity } },
+				{ session }
+			);
+		}
+
+		// ===== Validate & Deduct New Stock =====
+		for (const item of items) {
+			const product = await Product.findById(item.productId).session(session);
+			if (!product) throw new Error('Product not found');
+
+			if (product.stock < item.quantity)
+				throw new Error(`Insufficient stock for ${product.title}`);
+
+			product.stock -= item.quantity;
+			await product.save({ session });
+		}
+
+		// ===== Recalculate Invoice Totals (SERVER SIDE) =====
+		const subtotal = items.reduce((sum, i) => sum + i.price * i.quantity, 0);
+		const tax = subtotal * vat; // 7.5% VAT
+		const total = subtotal + tax;
+
+		const balance = total - amountPaid;
+		const status =
+			balance <= 0 ? 'paid' : amountPaid > 0 ? 'partial' : 'unpaid';
+
+		// ===== Update Invoice =====
+		const invoice = await Invoice.findByIdAndUpdate(
+			id,
+			{
+				items,
+				subtotal,
+				tax,
+				total,
+				amountPaid,
+				balance,
+				status,
+				notes,
+				paymentTerms,
+			},
+			{ new: true, session }
+		);
+
+		// ===== Payment Delta (Prevent Duplicate Payments) =====
+		const paymentDelta = amountPaid - existingInvoice.amountPaid;
+
+		let payment = null;
+		if (paymentDelta > 0) {
+			[payment] = await Payment.create(
+				[
+					{
+						invoiceId: invoice._id,
+						customerId: customerId || invoice.customerId,
+						amount: paymentDelta,
+						method: paymentInfo?.method || paymentMethod,
+						reference: paymentInfo?.reference || null,
+						date: paymentInfo?.date || new Date(),
+						createdBy: req.user._id,
+					},
+				],
+				{ session }
+			);
+		}
+
+		// ===== Adjust Customer Debt (Delta-Based) =====
+		const oldBalance = existingInvoice.balance;
+		const newBalance = balance;
+		const debtChange = newBalance - oldBalance;
+
+		await Customer.updateOne(
+			{ _id: invoice.customerId },
+			{
+				$inc: {
+					currentDebt: debtChange,
+				},
+			},
+			{ session }
+		);
+
+		// ===== Commit Transaction =====
+		await session.commitTransaction();
+
+		// ===== Upload Receipt (Post-Commit) =====
+		if (req.file && payment) {
+			const receipt = await uploadBufferToCloudinary(
+				req.file.buffer,
+				`receipt_${payment._id}`
+			);
+
+			await Payment.findByIdAndUpdate(payment._id, { receipt });
+		}
+
+		return res.status(200).json({
+			success: true,
+			invoice,
+			payment,
+		});
 	} catch (error) {
-		res.status(500).json({ error: error.message });
+		console.error(error);
+
+		if (session.inTransaction()) {
+			await session.abortTransaction();
+		}
+
+		return res.status(400).json({
+			success: false,
+			error: error.message,
+		});
+	} finally {
+		session.endSession();
 	}
 };
+
 export const deleteInvoice = async (req, res) => {
 	try {
-		const invoice = await Invoice.findByIdAndDelete(req.params.id);
+		const invoice = await Invoice.findById(req.params.id);
 		if (!invoice) {
 			return res.status(404).json({ error: 'Invoice not found' });
 		}
+		const payment = await Payment.findOne({ invoiceId: req.params.id });
+		if (payment) {
+			return res.status(404).json({ error: 'Invoice already have payment' });
+		}
+		const customer = await Customer.findOne({ _id: invoice.customerId });
+
+		customer.currentDebt -= invoice.amountPaid;
+		customer.creditBalance += invoice.amountPaid;
+		customer.totalSales -= invoice.total;
+		await customer.save();
+		await Invoice.findByIdAndDelete(req.params.id);
 		res.json({ message: 'Invoice deleted successfully' });
 	} catch (error) {
 		res.status(500).json({ error: error.message });

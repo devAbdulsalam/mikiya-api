@@ -1,7 +1,7 @@
 
 import mongoose from 'mongoose';
 
-const expenseSchema = new mongoose.Schema(
+const FoundationInvoiceSchema = new mongoose.Schema(
 	{
 		foundationId: { type: String, required: true, index: true },
 
@@ -9,18 +9,13 @@ const expenseSchema = new mongoose.Schema(
 
 		category: {
 			type: String,
-			enum: [
-				'Education',
-				'Healthcare',
-				'Infrastructure',
-				'Operations',
-				'Youth Empowerment',
-				'Community',
-				'Administrative',
-				'Travel',
-				'Equipment',
-			],
 		},
+
+		name: String,
+		email: String,
+		phone: String,
+		invoiceNumber: String,
+		address: String,
 
 		description: String,
 		amount: { type: Number, required: true },
@@ -29,13 +24,12 @@ const expenseSchema = new mongoose.Schema(
 
 		status: {
 			type: String,
-			enum: ['pending', 'approved', 'paid'],
+			enum: ['pending', 'approved', 'overdue', 'paid'],
 			default: 'pending',
 		},
 
-		expenseType: {
+		type: {
 			type: String,
-			enum: ['operational', 'project'],
 			default: 'operational',
 		},
 
@@ -45,6 +39,7 @@ const expenseSchema = new mongoose.Schema(
 		},
 
 		reference: String,
+		notes: String,
 		date: { type: Date, default: Date.now },
 		notes: String,
 
@@ -54,4 +49,4 @@ const expenseSchema = new mongoose.Schema(
 	{ timestamps: true }
 );
 
-export default mongoose.model('Expense', expenseSchema);
+export default mongoose.model('FoundationInvoice', FoundationInvoiceSchema);

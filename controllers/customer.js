@@ -123,8 +123,8 @@ export const getCustomerById = async (req, res) => {
 			totalPurchases: totalPurchases[0]?.total || 0,
 			totalOrders,
 			averageOrderValue,
-			transactions,
 			totalDebt: totalDebt[0]?.total || 0,
+			transactions,
 			payments,
 		};
 		res.json(data);
@@ -192,7 +192,7 @@ export const updateCustomer = async (req, res) => {
 
 export const updateCustomerDebt = async (req, res) => {
 	try {
-		const { amount, type } = req.body; // type: 'add' or 'subtract'
+		const { amount, type } = req.body; // type: 'add', 'remove' or 'set'
 
 		const customer = await Customer.findById(req.params.id);
 		if (!customer) {
@@ -203,20 +203,52 @@ export const updateCustomerDebt = async (req, res) => {
 		}
 
 		if (type === 'add') {
-			customer.creditInfo.currentDebt += amount;
-		} else if (type === 'subtract') {
-			customer.creditInfo.currentDebt = Math.max(
-				0,
-				customer.creditInfo.currentDebt - amount
-			);
+			customer.currentDebt += amount;
+		} else if (type === 'remove') {
+			customer.currentDebt = Math.max(0, customer.currentDebt - amount);
+		} else if (type === 'set') {
+			customer.currentDebt = amount;
 		}
-
 		await customer.save();
 
 		res.json({
 			success: true,
 			message: 'Customer debt updated',
-			currentDebt: customer.creditInfo.currentDebt,
+			currentDebt: customer.currentDebt,
+		});
+	} catch (error) {
+		res.status(500).json({
+			success: false,
+			message: 'Failed to update debt',
+			error: error.message,
+		});
+	}
+};
+export const updateCustomerCredit = async (req, res) => {
+	try {
+		const { amount, type } = req.body; // type: 'add', 'remove' or 'set'
+
+		const customer = await Customer.findById(req.params.id);
+		if (!customer) {
+			return res.status(404).json({
+				success: false,
+				message: 'Customer not found',
+			});
+		}
+
+		if (type === 'add') {
+			customer.creditBalance += amount;
+		} else if (type === 'remove') {
+			customer.creditBalance = Math.max(0, customer.creditBalance - amount);
+		} else if (type === 'set') {
+			customer.creditBalance = amount; 
+		}
+		await customer.save();
+
+		res.json({
+			success: true,
+			message: 'Customer credit updated',
+			creditBalance: customer.creditBalance,
 		});
 	} catch (error) {
 		res.status(500).json({

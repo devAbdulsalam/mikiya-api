@@ -25,6 +25,7 @@ const fundSchema = new mongoose.Schema(
 		},
 		sourceId: { type: mongoose.Schema.Types.ObjectId },
 		amount: { type: Number, required: true },
+		balance: { type: Number, default: 0, required: true },
 		currency: { type: String, default: 'NGN' },
 		receivedDate: { type: Date, default: Date.now },
 		notes: String,

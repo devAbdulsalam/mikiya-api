@@ -4,7 +4,11 @@ import Product from '../models/Product.js';
 import Outlet from '../models/Outlet.js';
 import { auth, isAdmin, isManagerOrAdmin } from '../middlewares/auth.js';
 import { validate } from '../middlewares/validation.js';
-import { uploadProductImages, validateUpload } from '../middlewares/upload.js';
+import {
+	uploadProductImages,
+	validateUpload,
+	upload,
+} from '../middlewares/upload.js';
 import {
 	productValidation,
 	updateProductValidation,
@@ -26,6 +30,7 @@ import {
 	updateStock,
 	getProductByOutlet,
 	getAllOnSaleProducts,
+	updateProductImages,
 } from '../controllers/product.js';
 
 const router = express.Router();
@@ -41,13 +46,11 @@ router.patch(
 	'/:id',
 	auth,
 	isManagerOrAdmin,
-	uploadProductImages,
-	validateUpload,
 	validate(updateProductValidation),
 	updateProduct
 );
 
-// router.post("/products", uploadProductFiles, createProduct);
+router.patch('/:id/images', uploadProductImages, updateProductImages);
 
 // POST /api/products - Create product with Cloudinary upload
 router.post(

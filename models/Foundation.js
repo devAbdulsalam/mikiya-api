@@ -2,10 +2,8 @@ import mongoose from 'mongoose';
 
 const foundationSchema = new mongoose.Schema(
 	{
-		foundationId: { type: String, required: true, unique: true, index: true },
 		name: { type: String, required: true },
 		description: String,
-
 		bankAccounts: [
 			{
 				bankName: String,
@@ -18,7 +16,6 @@ const foundationSchema = new mongoose.Schema(
 				lastReconciliation: Date,
 			},
 		],
-
 		createdBy: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'User',

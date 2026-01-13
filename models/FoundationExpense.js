@@ -1,12 +1,7 @@
 import mongoose from 'mongoose';
 
-const expenseSchema = new mongoose.Schema({
-	expenseId: {
-		type: String,
-		required: true,
-		unique: true,
-		trim: true,
-	},
+const FoundationExpenseSchema = new mongoose.Schema({
+	
 	foundationId: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: 'Foundation',
@@ -227,61 +222,7 @@ const expenseSchema = new mongoose.Schema({
 	},
 });
 
-// Update timestamp before saving
-expenseSchema.pre('save', async function () {
-	this.updatedAt = Date.now();
 
-	// Calculate total amount
-	this.totalAmount = this.amount + this.taxAmount;
-
-	// Set requiresApproval based on amount
-	if (this.amount >= 100000) {
-		// Threshold for approval
-		this.requiresApproval = true;
-	}
-
-});
-
-// Generate expense ID before saving
-expenseSchema.pre('save', async function () {
-	if (!this.expenseId) {
-		const timestamp = Date.now().toString().slice(-6);
-		const random = Math.floor(Math.random() * 1000)
-			.toString()
-			.padStart(3, '0');
-		this.expenseId = `EXP-${timestamp}-${random}`;
-	}
-});
-
-// Update fund balance and foundation statistics after expense is paid
-expenseSchema.post('save', async function (doc) {
-	try {
-		if (doc.status === 'paid') {
-			// Update fund balance
-			await mongoose.model('Fund').findByIdAndUpdate(doc.fundId, {
-				$inc: {
-					currentBalance: -doc.totalAmount,
-					allocatedAmount: -doc.totalAmount,
-					'performance.totalDisbursed': doc.totalAmount,
-				},
-				$set: {
-					'performance.lastDisbursement': new Date(),
-				},
-			});
-
-			// Update foundation statistics
-			await mongoose.model('Foundation').findByIdAndUpdate(doc.foundationId, {
-				$inc: {
-					'statistics.totalExpenses.amount': doc.totalAmount,
-					'statistics.totalExpenses.count': 1,
-				},
-			});
-		}
-	} catch (error) {
-		console.error('Error updating fund balance after expense:', error);
-	}
-});
-
-const FoundationExpense = mongoose.model('FoundationExpense', expenseSchema);
+const FoundationExpense = mongoose.model('FoundationExpense', FoundationExpenseSchema);
 
 export default FoundationExpense;

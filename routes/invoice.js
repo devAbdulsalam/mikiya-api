@@ -1,6 +1,6 @@
 import express from 'express';
 import { upload } from '../middlewares/upload.js';
-import { auth } from '../middlewares/auth.js';
+import { auth, isAdmin, isManagerOrAdmin } from '../middlewares/auth.js';
 import {
 	getInvoiceById,
 	newInvoice,
@@ -12,10 +12,10 @@ const router = express.Router();
 
 router.get('/', auth, getAllInvoices);
 
-router.post('/', auth, upload.single('image'), newInvoice);
+router.post('/', auth, isManagerOrAdmin, upload.single('image'), newInvoice);
 router.get('/:id', auth, getInvoiceById);
 router.put('/:id', auth, upload.single('image'), updateInvoice);
-router.delete('/:id', auth, deleteInvoice);
+router.delete('/:id', auth, isAdmin, deleteInvoice);
 
 // ... other routes for getting, updating, deleting invoices
 
