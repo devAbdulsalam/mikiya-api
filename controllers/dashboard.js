@@ -178,11 +178,7 @@ export const getBusinessDashboard = async (req, res) => {
 			Customer.countDocuments({ businessId }),
 			Product.countDocuments({ businessId }),
 			Product.aggregate([
-				{
-					$match: {
-						businessId,
-					},
-				},
+				{ $match: { businessId: new mongoose.Types.ObjectId(businessId) } },
 				{
 					$group: {
 						_id: null,
@@ -265,6 +261,7 @@ export const getBusinessDashboard = async (req, res) => {
 		// console.log('businessId:', businessId);
 		console.log('Outstanding debt:', totalOutStandingDebt);
 		console.log('Total sales:', totalSales);
+		console.log('Total totalProductWorth:', totalProductWorth[0]?.totalWorth);
 
 		const dashboardData = {
 			totalSales,
