@@ -46,8 +46,8 @@ const userSchema = new mongoose.Schema({
 	},
 	department: {
 		type: String,
-		enum: ['foundation', 'plastic', 'solar'],
-		default: 'plastic',
+		enum: ['foundation', 'business'],
+		default: 'business',
 	},
 	isActive: {
 		type: Boolean,

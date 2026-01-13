@@ -3,6 +3,7 @@ import Transaction from '../models/Transaction.js';
 import Product from '../models/Product.js';
 import Invoice from '../models/Invoice.js';
 import Payment from '../models/Payment.js';
+import Business from '../models/Business.js';
 import { generateOutletId } from '../utils/generateId.js';
 
 export const createOutlet = async (req, res) => {
@@ -12,10 +13,23 @@ export const createOutlet = async (req, res) => {
 			outletId: generateOutletId(),
 			createdBy: req.user.id,
 		};
-
+		if (!req.body.businessId) {
+			return res.status(400).json({
+				success: false,
+				message: 'Business ID is required',
+			});
+		}
+		const business = await Business.findById(req.body.businessId);
+		if (!business) {
+			return res.status(404).json({
+				success: false,
+				message: 'Business not found',
+			});
+		}
 		const outlet = new Outlet(outletData);
 		await outlet.save();
-
+		business.totalOutlets = business.totalOutlets + 1;
+		await business.save();
 		res.status(201).json({
 			success: true,
 			message: 'Outlet created successfully',
@@ -76,7 +90,6 @@ export const getOutletById = async (req, res) => {
 		const lowStockProducts = await Product.find({
 			outletId: id,
 			stock: { $lte: 10 },
-		
 		});
 		const totalProductWorth = await Product.aggregate([
 			{
@@ -145,6 +158,26 @@ export const updateOutlet = async (req, res) => {
 	}
 };
 export const deleteOutlet = async (req, res) => {
-	await Outlet.findByIdAndDelete(req.params.id);
-	res.json({ message: 'Outlet deleted' });
+	try {
+		const { id } = req.params;
+		await Outlet.findById(req.params.id);
+		if (!outlet) {
+			return res.status(404).json({
+				success: false,
+				message: 'Outlet not found',
+			});
+		}
+		const business = await Business.findById(outlet._doc.businessId);
+		business.totalOutlets = business.totalOutlets - 1;
+		await business.save();
+		await Outlet.findByIdAndDelete(req.params.id);
+		res.json({ message: 'Outlet deleted' });
+	} catch (error) {
+		console.error('Delete Outlet Error:', error);
+		return res.status(500).json({
+			success: false,
+			message: 'Failed to delete outlet',
+			error: error.message,
+		});
+	}
 };

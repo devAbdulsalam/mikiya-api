@@ -20,30 +20,17 @@ const businessSchema = new mongoose.Schema({
 		unique: true,
 	},
 	address: String,
+	phone: String,
+	email: String,
 	managers: [
 		{
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'User',
 		},
 	],
-	phone: String,
-	email: String,
 	totalOutlets: {
 		type: Number,
 		default: 0,
-	},
-	totalSales: {
-		type: Number,
-		default: 0,
-	},
-	totalProducts: {
-		type: Number,
-		default: 0,
-	},
-	financial: {
-		totalRevenue: { type: Number, default: 0 },
-		totalExpenses: { type: Number, default: 0 },
-		currentBalance: { type: Number, default: 0 },
 	},
 	isActive: {
 		type: Boolean,
