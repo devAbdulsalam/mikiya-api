@@ -117,8 +117,8 @@ export const createProduct = async (req, res) => {
 			metaDescription:
 				productData.metaDescription ||
 				productData.description.substring(0, 160),
-			createdBy: req.user.id,
-			updatedBy: req.user.id,
+			createdBy: req.user._id,
+			updatedBy: req.user._id,
 		};
 
 		// Create the product
@@ -231,11 +231,11 @@ export const updateProduct = async (req, res) => {
 			updateData.isBestSeller = Number(updateData.sold) >= 100;
 		}
 
+		console.log('req.user', req.user);
 		// 5️⃣ Audit fields
 		updateData.updatedBy = req.user._id;
+		updateData._id = id;
 		updateData.updatedAt = new Date();
-		updateData.businessId = new mongoose.Types.ObjectId(req.body.businessId);
-		updateData.outletId = new mongoose.Types.ObjectId(req.body.outletId);
 
 		console.log('updateData', updateData);
 		// 6️⃣ Update product
@@ -244,7 +244,10 @@ export const updateProduct = async (req, res) => {
 				_id: new mongoose.Types.ObjectId(id),
 			},
 			{ $set: updateData },
-			{ new: true, runValidators: true }
+			{
+				new: true,
+				// runValidators: true
+			}
 		)
 			.populate('outletId', 'name')
 			.populate('updatedBy', 'username email');
@@ -573,6 +576,7 @@ export const getProductById = async (req, res) => {
 		// Format product details
 		const productDetails = {
 			id: product._id,
+			_id: product._id,
 			productId: product.productId,
 			title: product.title,
 			description: product.description,
@@ -595,8 +599,7 @@ export const getProductById = async (req, res) => {
 			rating: product.rating,
 			sold: product.sold,
 			reviews: product.reviews,
-			outlet: product.outlet,
-			outletDetails: product.outletId,
+			outletId: product.outletId,
 			outlets: product.outlets,
 			supplier: product.supplier,
 			variants: product.variants,

@@ -148,12 +148,12 @@ const productSchema = new mongoose.Schema(
 
 		// Business Information
 		businessId: {
-			type: String,
+			type: mongoose.Schema.Types.ObjectId,
 			required: true,
 			ref: 'Business',
 		},
 		outletId: {
-			type: String,
+			type: mongoose.Schema.Types.ObjectId,
 			ref: 'Outlet',
 		},
 
