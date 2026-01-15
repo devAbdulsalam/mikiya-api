@@ -162,10 +162,18 @@ export const deleteBusiness = async (req, res) => {
 };
 export const getAllBusinessAndOutlets = async (req, res) => {
 	try {
-		const businesses = await Business.find().select(
+		const filter = {};
+		// Managers can only see their Business
+		if (req.user.role === 'manager' && req.user.businessId) {
+			filter._id = req.user.BusinessId;
+		}
+		const businesses = await Business.find(filter).select(
 			'_id businessId name address phone'
 		);
-		const outlets = await Outlet.find().select(
+		const outletFilter =
+			req.user.role === 'manager' ? { businessId: req.user.businessId } : {};
+
+		const outlets = await Outlet.find(outletFilter).select(
 			'_id businessId name address phone'
 		);
 		res.json({

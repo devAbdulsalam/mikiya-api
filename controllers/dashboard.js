@@ -1,13 +1,11 @@
 import mongoose from 'mongoose';
-import Transaction from '../models/Transaction.js';
 import Customer from '../models/Customer.js';
 import Product from '../models/Product.js';
 import Outlet from '../models/Outlet.js';
 import Payment from '../models/Payment.js';
 import Invoice from '../models/Invoice.js';
 import Business from '../models/Business.js';
-import Order from '../models/Order.js';
-import Debt from '../models/Debt.js';
+import User from '../models/User.js';
 import Donation from '../models/Donation.js';
 import Project from '../models/Project.js';
 import Fund from '../models/Fund.js';
@@ -149,6 +147,201 @@ export const topDonors = async (req, res) => {
 
 	res.json(donors);
 };
+export const getDashboardData = async (req, res) => {
+	try {
+		const { role, businessId } = req.user;
+
+		// console.log(req?.user)
+		const scope =
+			role === 'admin'
+				? {}
+				: { businessId: new mongoose.Types.ObjectId(businessId) };
+
+		const [
+			totalBusinesses,
+			totalOutlets,
+			totalProducts,
+			totalInvoices,
+			totalUsers,
+			totalCustomers,
+			paymentInfo,
+			totalDebt,
+		] = await Promise.all([
+			role === 'admin' ? Business.countDocuments() : Promise.resolve(null),
+
+			Outlet.countDocuments(scope),
+			Product.countDocuments(scope),
+			Invoice.countDocuments(scope),
+			User.countDocuments({ ...scope }),
+			Customer.countDocuments(scope),
+
+			Payment.aggregate([
+				{ $match: scope },
+				{
+					$group: {
+						_id: null,
+						totalPayment: { $sum: '$amount' },
+						totalTransactions: { $sum: 1 },
+						avgPayment: { $avg: '$amount' },
+					},
+				},
+			]),
+
+			Invoice.aggregate([
+				{ $match: { ...scope, balance: { $gt: 0 } } },
+				{ $group: { _id: null, total: { $sum: '$balance' } } },
+			]),
+		]);
+
+		const paymentStats = paymentInfo[0] || {
+			totalPayment: 0,
+			totalTransactions: 0,
+			avgPayment: 0,
+		};
+
+		const outletPerformance = await Invoice.aggregate([
+			{
+				$match: scope,
+			},
+			{
+				$group: {
+					_id: '$outletId',
+					sales: { $sum: '$total' }, // total invoiced
+					paid: { $sum: { $subtract: ['$total', '$balance'] } },
+					outstanding: { $sum: '$balance' },
+				},
+			},
+			{
+				$lookup: {
+					from: 'outlets',
+					localField: '_id',
+					foreignField: '_id',
+					as: 'outlet',
+				},
+			},
+			{ $unwind: '$outlet' },
+			{
+				$project: {
+					_id: 0,
+					outletId: '$_id',
+					name: '$outlet.name',
+					sales: 1,
+					paid: 1,
+					outstanding: 1,
+				},
+			},
+			{ $sort: { sales: -1 } },
+		]);
+
+		const usersByRole = await User.aggregate([
+			{ $unwind: '$role' },
+			{
+				$group: {
+					_id: '$role',
+					count: { $sum: 1 },
+				},
+			},
+			{
+				$project: {
+					_id: 0,
+					role: '$_id',
+					count: 1,
+				},
+			},
+		]);
+
+		const months = [
+			'Jan',
+			'Feb',
+			'Mar',
+			'Apr',
+			'May',
+			'Jun',
+			'Jul',
+			'Aug',
+			'Sep',
+			'Oct',
+			'Nov',
+			'Dec',
+		];
+		const revenueByMonth = await Payment.aggregate([
+			{ $match: scope },
+			{
+				$group: {
+					_id: { $month: '$createdAt' },
+					revenue: { $sum: '$amount' },
+				},
+			},
+			{
+				$project: {
+					_id: 0,
+					month: '$_id',
+					revenue: 1,
+				},
+			},
+			{ $sort: { month: 1 } },
+		]);
+
+		const formattedRevenue = revenueByMonth.map((r) => ({
+			month: months[r.month - 1],
+			revenue: r.revenue,
+		}));
+
+		const invoiceStatus = await Invoice.aggregate([
+			{ $match: scope },
+			{
+				$project: {
+					status: {
+						$cond: [
+							{ $eq: ['$balance', 0] },
+							'Paid',
+							{
+								$cond: [{ $eq: ['$balance', '$total'] }, 'Pending', 'Partial'],
+							},
+						],
+					},
+				},
+			},
+			{
+				$group: {
+					_id: '$status',
+					value: { $sum: 1 },
+				},
+			},
+			{
+				$project: {
+					_id: 0,
+					name: '$_id',
+					value: 1,
+				},
+			},
+		]);
+
+		const dashboardData = {
+			revenueByMonth: formattedRevenue,
+			success: true,
+			stats: {
+				totalBusinesses,
+				totalOutlets,
+				totalProducts,
+				totalInvoices,
+				totalUsers,
+				totalCustomers,
+				...paymentStats,
+				totalDebt: totalDebt[0]?.total || 0,
+			},
+			invoiceStatus,
+			revenueByMonth,
+			usersByRole,
+			outletPerformance,
+		};
+		// console.log('dashboardData', dashboardData);
+		res.status(200).json(dashboardData);
+	} catch (error) {
+		console.error(error);
+		res.status(500).json({ error: error.message });
+	}
+};
 
 export const getBusinessDashboard = async (req, res) => {
 	try {
@@ -286,27 +479,33 @@ export const getBusinessDashboard = async (req, res) => {
 
 export const getDebtStats = async (req, res) => {
 	try {
-		const businessId = req.params.id;
+		const { businessId } = req.params;
+
+		const filter = {};
+		if (businessId) {
+			filter.business = new mongoose.Types.ObjectId(businessId);
+		}
 		const outstanding = await Invoice.aggregate([
-			{ $match: { businessId, balance: { $gt: 0 } } },
+			{ $match: { ...filter, balance: { $gt: 0 } } },
 			{ $group: { _id: null, total: { $sum: '$balance' } } },
 		]);
 
 		const totalOutstandingDebt = outstanding[0]?.total || 0;
 
 		const totalCustomersWithDebt = await Customer.countDocuments({
+			...filter,
 			currentDebt: { $gt: 0 },
 		});
 
 		const [pendingInvoices, debtAgg] = await Promise.all([
-			Invoice.find({ businessId, status: { $ne: 'paid' } })
+			Invoice.find({ ...filter, status: { $ne: 'paid' } })
 				.populate('outletId', 'name address')
 				.populate('customerId', 'name phone email')
 				.populate('items.productId', 'title price'),
 			Invoice.aggregate([
 				{
 					$match: {
-						businessId: new mongoose.Types.ObjectId(businessId),
+						...filter,
 						status: { $ne: 'paid' },
 					},
 				},
@@ -328,5 +527,146 @@ export const getDebtStats = async (req, res) => {
 	} catch (error) {
 		console.log(error);
 		res.status(500).json({ error: error.message });
+	}
+};
+
+export const dashboardStats = async (req, res) => {
+	try {
+		const { role, businessId } = req.user;
+
+		const scope =
+			role === 'admin'
+				? {}
+				: { businessId: new mongoose.Types.ObjectId(businessId) };
+
+		const outletPerformance = await Invoice.aggregate([
+			{
+				$match: scope,
+			},
+			{
+				$group: {
+					_id: '$outletId',
+					sales: { $sum: '$total' }, // total invoiced
+					paid: { $sum: { $subtract: ['$total', '$balance'] } },
+					outstanding: { $sum: '$balance' },
+				},
+			},
+			{
+				$lookup: {
+					from: 'outlets',
+					localField: '_id',
+					foreignField: '_id',
+					as: 'outlet',
+				},
+			},
+			{ $unwind: '$outlet' },
+			{
+				$project: {
+					_id: 0,
+					outletId: '$_id',
+					name: '$outlet.name',
+					sales: 1,
+					paid: 1,
+					outstanding: 1,
+				},
+			},
+			{ $sort: { sales: -1 } },
+		]);
+
+		const usersByRole = await User.aggregate([
+			{ $unwind: '$role' },
+			{
+				$group: {
+					_id: '$role',
+					count: { $sum: 1 },
+				},
+			},
+			{
+				$project: {
+					_id: 0,
+					role: '$_id',
+					count: 1,
+				},
+			},
+		]);
+
+		const months = [
+			'Jan',
+			'Feb',
+			'Mar',
+			'Apr',
+			'May',
+			'Jun',
+			'Jul',
+			'Aug',
+			'Sep',
+			'Oct',
+			'Nov',
+			'Dec',
+		];
+		const revenueByMonth = await Payment.aggregate([
+			{ $match: scope },
+			{
+				$group: {
+					_id: { $month: '$createdAt' },
+					revenue: { $sum: '$amount' },
+				},
+			},
+			{
+				$project: {
+					_id: 0,
+					month: '$_id',
+					revenue: 1,
+				},
+			},
+			{ $sort: { month: 1 } },
+		]);
+
+		const formattedRevenue = revenueByMonth.map((r) => ({
+			month: months[r.month - 1],
+			revenue: r.revenue,
+		}));
+
+		const invoiceStatus = await Invoice.aggregate([
+			{ $match: scope },
+			{
+				$project: {
+					status: {
+						$cond: [
+							{ $eq: ['$balance', 0] },
+							'Paid',
+							{
+								$cond: [{ $eq: ['$balance', '$total'] }, 'Pending', 'Partial'],
+							},
+						],
+					},
+				},
+			},
+			{
+				$group: {
+					_id: '$status',
+					value: { $sum: 1 },
+				},
+			},
+			{
+				$project: {
+					_id: 0,
+					name: '$_id',
+					value: 1,
+				},
+			},
+		]);
+
+		const dashboardData = {
+			revenueByMonth: formattedRevenue,
+			invoiceStatus,
+			usersByRole,
+			outletPerformance,
+		};
+
+		res.status(200).json(dashboardData);
+	} catch (error) {
+		console.error(error);
+		res.status(400).json({ error: error.message });
 	}
 };

@@ -6,9 +6,12 @@ import Outlet from '../models/Outlet.js';
 
 export const getCustomers = async (req, res) => {
 	try {
-		const { outletId, search, type } = req.query;
+		const { outletId, businessId, search, type } = req.query;
 		const filter = {};
 
+		if (businessId) {
+			filter.businessId = businessId;
+		}
 		if (outletId) {
 			filter.outletId = outletId;
 		} else if (req.user.role !== 'admin') {
@@ -144,6 +147,9 @@ export const getCustomerDebtors = async (req, res) => {
 		if (req.user.role !== 'admin' && req.user.outletId) {
 			filter.outletId = req.user.outletId;
 		}
+		// if (req.user.role === 'staff' && req.user.outletId) {
+		// 	filter.outletId = req.user.outletId;
+		// }
 
 		const debtors = await Customer.find(filter)
 			.populate('outletId', 'name')
@@ -241,7 +247,7 @@ export const updateCustomerCredit = async (req, res) => {
 		} else if (type === 'remove') {
 			customer.creditBalance = Math.max(0, customer.creditBalance - amount);
 		} else if (type === 'set') {
-			customer.creditBalance = amount; 
+			customer.creditBalance = amount;
 		}
 		await customer.save();
 
@@ -262,13 +268,21 @@ export const updateCustomerCredit = async (req, res) => {
 export const deleteCustomer = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const customer = await Customer.findByIdAndDelete(id);
+		const customer = await Customer.findById(id);
 		if (!customer) {
 			return res.status(404).json({
 				success: false,
 				message: 'Customer not found',
 			});
 		}
+		const invoice = await Invoice.find({ customerId: req.params.id });
+		if (invoice.length > 0) {
+			return res.status(400).json({
+				success: false,
+				message: 'Cannot delete customer with an invoice',
+			});
+		}
+		await Customer.findByIdAndDelete(id);
 		res.json({
 			success: true,
 			message: 'Customer deleted successfully',

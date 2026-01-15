@@ -36,10 +36,12 @@ import {
 const router = express.Router();
 
 // GET /api/products - Get all products with filters
-router.get('/', getAllProducts);
+router.get('/all', getAllProducts);
 
 // GET /api/products/:id - Get a single product
 router.get('/:id', getProductById);
+// GET /api/products - Get all products with filters
+router.get('/', getAllProducts);
 
 // PATCH /api/products/:id - Update product
 router.patch(
@@ -50,7 +52,7 @@ router.patch(
 	updateProduct
 );
 
-router.patch('/:id/images', uploadProductImages, updateProductImages);
+router.patch('/:id/images', auth, uploadProductImages, updateProductImages);
 
 // POST /api/products - Create product with Cloudinary upload
 router.post(
@@ -80,22 +82,22 @@ router.post(
 router.delete('/:id/images', auth, isManagerOrAdmin);
 
 // GET /api/products/categories - Get all categories
-router.get('/categories/all', getAllCatergories);
+router.get('/categories/all', auth, getAllCatergories);
 
 // GET /api/products/featured - Get featured products
-router.get('/featured/all', getAllFeaturedProducts);
+router.get('/featured/all', auth, getAllFeaturedProducts);
 
 // GET /api/products/bestsellers - Get bestseller products
-router.get('/bestsellers/all', getBestSellers);
+router.get('/bestsellers/all', auth, getBestSellers);
 
 // GET /api/products/new-arrivals - Get new arrivals
-router.get('/new-arrivals/all', getNewArrivals);
+router.get('/new-arrivals/all', auth, getNewArrivals);
 
 // GET /api/products/on-sale - Get products on sale
-router.get('/on-sale/all', getAllOnSaleProducts);
+router.get('/on-sale/all', auth, getAllOnSaleProducts);
 
 // GET /api/products/outlet/:outletId - Get products by outlet
-router.get('/outlet/:outletId', getProductByOutlet);
+router.get('/outlet/:outletId', auth, getProductByOutlet);
 
 // POST /api/products/:id/stock - Update product stock
 router.post('/:id/stock', auth, isManagerOrAdmin, updateStock);

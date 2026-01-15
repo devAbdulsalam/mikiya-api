@@ -363,7 +363,6 @@ export const getAllProducts = async (req, res) => {
 	try {
 		const {
 			category,
-			outlet,
 			minPrice,
 			maxPrice,
 			featured,
@@ -376,6 +375,8 @@ export const getAllProducts = async (req, res) => {
 			limit = 20,
 			sortBy = 'createdAt',
 			order = 'desc',
+			outletId,
+			businessId,
 		} = req.query;
 
 		const filter = {};
@@ -390,8 +391,12 @@ export const getAllProducts = async (req, res) => {
 		}
 
 		// Outlet filter
-		if (outlet) {
-			filter.outlet = outlet;
+		if (outletId) {
+			filter.outlet = outletId;
+		}
+		// Business filter
+		if (businessId) {
+			filter.business = businessId;
 		}
 
 		// Price range filter
@@ -454,7 +459,7 @@ export const getAllProducts = async (req, res) => {
 
 		// Get products with pagination and sorting
 		const products = await Product.find(filter)
-			.populate('outletId', 'name outletId type')
+			.populate('outletId', 'name  type')
 			.populate(
 				'createdBy',
 				'username email profile.firstName profile.lastName'
@@ -489,6 +494,7 @@ export const getAllProducts = async (req, res) => {
 			sold: product.sold,
 			reviews: product.reviews,
 			outletId: product.outletId,
+			businessId: product.businessId,
 			status: product.status,
 			isFeatured: product.isFeatured,
 			isBestSeller: product.isBestSeller,
@@ -514,7 +520,8 @@ export const getAllProducts = async (req, res) => {
 			},
 			filters: {
 				category,
-				outlet,
+				outletId,
+				businessId,
 				minPrice,
 				maxPrice,
 				featured,

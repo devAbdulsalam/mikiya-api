@@ -56,6 +56,7 @@ export const getOutlets = async (req, res) => {
 		const outlets = await Outlet.find(filter)
 			.populate('createdBy', 'username email')
 			.populate('managerId', 'username email phone')
+			.populate('businessId', 'name email phone')
 			.sort({ createdAt: -1 });
 
 		res.json({
@@ -75,10 +76,9 @@ export const getOutlets = async (req, res) => {
 export const getOutletById = async (req, res) => {
 	try {
 		const { id } = req.params;
-		const outlet = await Outlet.findById(id).populate(
-			'managerId',
-			'username email phone'
-		);
+		const outlet = await Outlet.findById(id)
+			.populate('managerId', 'username email phone')
+			.populate('businessId', 'name email phone');
 		if (!outlet) {
 			return res.status(404).json({
 				success: false,
@@ -159,12 +159,18 @@ export const updateOutlet = async (req, res) => {
 };
 export const deleteOutlet = async (req, res) => {
 	try {
-		const { id } = req.params;
-		await Outlet.findById(req.params.id);
+		const outlet = await Outlet.findById(req.params.id);
 		if (!outlet) {
 			return res.status(404).json({
 				success: false,
 				message: 'Outlet not found',
+			});
+		}
+		const products = await Product.find({ outletId: req.params.id });
+		if (products.length > 0) {
+			return res.status(400).json({
+				success: false,
+				message: 'Cannot delete outlet with products',
 			});
 		}
 		const business = await Business.findById(outlet._doc.businessId);

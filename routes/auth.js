@@ -159,9 +159,10 @@ router.post('/login', validate(loginValidation), async (req, res) => {
 		const { email, password } = req.body;
 
 		// Find user with password
-		const user = await User.findOne({ email }).select(
-			'+password +loginAttempts +lockUntil'
-		);
+		const user = await User.findOne({ email })
+			.populate('businessId', 'name phone address email')
+			.populate('outletId', 'name address type')
+			.select('+password +loginAttempts +lockUntil');
 
 		if (!user) {
 			return res.status(401).json({
@@ -242,6 +243,7 @@ router.post('/login', validate(loginValidation), async (req, res) => {
 				message: 'Login successful',
 				user: {
 					id: user._id,
+					_id: user._id,
 					userId: user.userId,
 					username: user.username,
 					email: user.email,
@@ -444,7 +446,8 @@ router.post(
 router.get('/profile', auth, async (req, res) => {
 	try {
 		const user = await User.findById(req.user.id)
-			.populate('outletId', 'name outletId type')
+			.populate('businessId', 'name phone address email')
+			.populate('outletId', 'name address type')
 			.select('-password -loginAttempts -lockUntil');
 
 		if (!user) {
@@ -474,7 +477,9 @@ router.post('/refresh-token', auth, async (req, res, next) => {
 		if (!refreshToken) throw { message: 'refresh Token error' };
 		const decode = jwt.verify(refreshToken, process.env.REFRESH_SECRET);
 		// console.log('decode', decode);
-		const user = await User.findById(decode.id);
+		const user = await User.findById(decode.id)
+			.populate('businessId', 'name phone address email')
+			.populate('outletId', 'name address type');
 		// console.log('user', user);
 		if (!user) {
 			return res.status(404).send({
@@ -492,6 +497,7 @@ router.post('/refresh-token', auth, async (req, res, next) => {
 			refreshToken: refToken,
 			user: {
 				id: user._id,
+				_id: user._id,
 				userId: user.userId,
 				username: user.username,
 				email: user.email,
@@ -655,6 +661,7 @@ router.post('/users/:id/suspend', auth, isAdmin, async (req, res) => {
 			message: 'User suspended successfully',
 			user: {
 				id: user._id,
+				_id: user._id,
 				username: user.username,
 				email: user.email,
 				isSuspended: user.isSuspended,
@@ -695,6 +702,7 @@ router.post('/users/:id/activate', auth, isAdmin, async (req, res) => {
 			message: 'User activated successfully',
 			user: {
 				id: user._id,
+				_id: user._id,
 				username: user.username,
 				email: user.email,
 				isSuspended: user.isSuspended,

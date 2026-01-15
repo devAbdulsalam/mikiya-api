@@ -1,6 +1,12 @@
 import mongoose, { Schema } from 'mongoose';
 
 const invoiceSchema = new mongoose.Schema({
+	outletId: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'Outlet',
+		required: true,
+	},
+	total: Number,
 	invoiceNumber: {
 		type: String,
 		required: true,
@@ -14,11 +20,6 @@ const invoiceSchema = new mongoose.Schema({
 	transactionId: {
 		type: mongoose.Schema.Types.ObjectId,
 		ref: 'Transaction',
-	},
-	outletId: {
-		type: mongoose.Schema.Types.ObjectId,
-		ref: 'Outlet',
-		required: true,
 	},
 	customerId: {
 		type: mongoose.Schema.Types.ObjectId,
@@ -42,7 +43,6 @@ const invoiceSchema = new mongoose.Schema({
 	subtotal: Number,
 	tax: Number,
 	discount: Number,
-	total: Number,
 	amountPaid: Number,
 	balance: Number,
 	paymentTerms: String,

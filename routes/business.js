@@ -8,12 +8,12 @@ import {
 	updateBusiness,
 	deleteBusiness,
 	getBusinessesAndOutlets,
-	getAllBusinessAndOutlets
+	getAllBusinessAndOutlets,
 } from '../controllers/business.js';
 
 const router = express.Router();
 
-router.get('/outlets/all', getAllBusinessAndOutlets);
+router.get('/outlets/all', auth, getAllBusinessAndOutlets);
 
 // Get all Businesss (Admin/Manager only)
 router.get('/', auth, isManagerOrAdmin, getBusinesses);

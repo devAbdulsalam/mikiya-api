@@ -124,6 +124,7 @@ export const getUsers = async (req, res) => {
 			outletId,
 			isActive,
 			isSuspended,
+			department,
 			search,
 			page = 1,
 			limit = 20,
@@ -137,6 +138,7 @@ export const getUsers = async (req, res) => {
 		if (role) filter.role = role;
 		if (outletId) filter.outletId = outletId;
 		if (businessId) filter.businessId = businessId;
+		if (department) filter.department = department;
 		if (isActive !== undefined) filter.isActive = isActive === 'true';
 		if (isSuspended !== undefined) filter.isSuspended = isSuspended === 'true';
 
