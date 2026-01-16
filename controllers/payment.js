@@ -265,15 +265,12 @@ export const deletePayment = async (req, res) => {
 		================================ */
 
 		// rollback customer
-		customer.creditInfo.currentDebt += paymentAmount;
+		customer.currentDebt += paymentAmount;
 
-		if (customer.creditInfo.creditBalance > 0) {
-			const usedCredit = Math.min(
-				customer.creditInfo.creditBalance,
-				paymentAmount
-			);
-			customer.creditInfo.creditBalance -= usedCredit;
-			customer.creditInfo.currentDebt -= usedCredit;
+		if (customer.creditBalance > 0) {
+			const usedCredit = Math.min(customer.creditBalance, paymentAmount);
+			customer.creditBalance -= usedCredit;
+			customer.currentDebt -= usedCredit;
 		}
 
 		// rollback invoice

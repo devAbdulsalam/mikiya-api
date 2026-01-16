@@ -25,6 +25,8 @@ import businessRoutes from './routes/business.js';
 import userRoutes from './routes/user.js';
 import paymentRoutes from './routes/payment.js';
 import foundationRoutes from './routes/foundation/index.js';
+import waybillRoutes from './routes/waybill.js';
+import quotationRoutes from './routes/quotation.js';
 // import reportRoutes from './routes/report.js';
 
 // Initialize express app
@@ -86,6 +88,8 @@ app.use('/api/businesses', businessRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/payments', paymentRoutes);
 app.use('/api/foundation', foundationRoutes);
+app.use('/api/waybills', waybillRoutes);
+app.use('/api/quotations', quotationRoutes);
 // app.use('/api/reports', reportRoutes);
 
 // Health check endpoint
