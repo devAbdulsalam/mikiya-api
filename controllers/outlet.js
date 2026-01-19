@@ -26,7 +26,10 @@ export const createOutlet = async (req, res) => {
 				message: 'Business not found',
 			});
 		}
-		const outlet = new Outlet(outletData);
+		const outlet = new Outlet({
+			...outletData,
+			managerId: req.body.managerId || business.managerId,
+		});
 		await outlet.save();
 		business.totalOutlets = business.totalOutlets + 1;
 		await business.save();

@@ -225,6 +225,20 @@ export const updatePayment = async (req, res) => {
 // Check delete window (7 days)
 const canDeleteDays = 7;
 
+// export const deletePayment = async (req, res) => {
+// 	try {
+// 		const payment = await Payment.findById(req.params.id);
+// 		if (!payment) {
+// 			return res.status(404).json({ error: 'Payment not found' });
+// 		}
+// 		await payment.deleteOne();
+
+// 		res.json({ message: 'Payment deleted successfully' });
+// 	} catch (error) {
+// 		res.status(500).json({ error: error.message });
+// 	}
+// };
+
 export const deletePayment = async (req, res) => {
 	try {
 		const payment = await Payment.findById(req.params.id);

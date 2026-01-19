@@ -392,11 +392,11 @@ export const getAllProducts = async (req, res) => {
 
 		// Outlet filter
 		if (outletId) {
-			filter.outlet = outletId;
+			filter.outletId = outletId;
 		}
 		// Business filter
 		if (businessId) {
-			filter.business = businessId;
+			filter.businessId = new mongoose.Types.ObjectId(businessId);
 		}
 
 		// Price range filter

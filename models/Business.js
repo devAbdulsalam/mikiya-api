@@ -22,6 +22,10 @@ const businessSchema = new mongoose.Schema({
 	address: String,
 	phone: String,
 	email: String,
+	managerId: {
+		type: mongoose.Schema.Types.ObjectId,
+		ref: 'User',
+	},
 	managers: [
 		{
 			type: mongoose.Schema.Types.ObjectId,

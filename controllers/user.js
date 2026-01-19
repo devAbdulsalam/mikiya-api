@@ -9,7 +9,7 @@ import {
 	generateTemporaryPassword,
 	validatePasswordStrength,
 } from '../utils/helpers.js';
-import { generateUserId } from '../utils/generateId.js';
+import bcrypt from 'bcryptjs';
 import Business from '../models/Business.js';
 import Outlet from '../models/Outlet.js';
 
@@ -24,22 +24,24 @@ export const createManager = async ({
 }) => {
 	try {
 		if (!lastName || !firstName) {
-			return res.status(400).json({ message: 'All fields are required' });
+			return res
+				.status(400)
+				.json({ message: 'First name and last name fields are required' });
 		}
 		if (!email || !password) {
-			return res.status(400).json({ message: 'All fields are required' });
+			return res
+				.status(400)
+				.json({ message: 'Email and password fields are required' });
 		}
 
 		if (await User.findOne({ email })) {
 			return res.status(400).json({ message: 'Email already in use' });
 		}
-					// Generate user ID
-					const userId = generateUserId();
 		
-					const newPassword = password || generateTemporaryPassword();
-					// Create admin user
-					const hashedPassword = await bcrypt.hash(newPassword, 12);
-		
+		const newPassword = password || generateTemporaryPassword();
+		// Create admin user
+		const hashedPassword = await bcrypt.hash(newPassword, 12);
+
 		const user = await User.create({
 			username,
 			email,
@@ -264,7 +266,7 @@ export const updateUser = async (req, res) => {
 		const user = await User.findByIdAndUpdate(
 			userId,
 			{ $set: updates },
-			{ new: true, runValidators: true }
+			{ new: true, runValidators: true },
 		)
 			.select('-password -loginAttempts -lockUntil')
 			.populate('outletId', 'name outletId');
