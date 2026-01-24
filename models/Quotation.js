@@ -24,6 +24,10 @@ const quotationSchema = new mongoose.Schema({
 		email: String,
 		phone: String,
 		address: String,
+		_id: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'Customer',
+		},
 	},
 	bankDetails: {
 		bankName: String,

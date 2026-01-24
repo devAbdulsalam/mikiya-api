@@ -1,26 +1,55 @@
 import Quotation from '../models/Quotation.js';
+import Customer from '../models/Customer.js';
 
 /**
  * CREATE quotation
  */
 export const createQuotation = async (req, res) => {
 	try {
+		const { clientDetails, ...quotationData } = req.body;
+
+		if (!clientDetails) {
+			return res.status(400).json({
+				success: false,
+				message: 'Client details are required',
+			});
+		}
+
+		// Find or create customer
+		const customer = clientDetails._id
+			? await Customer.findById(clientDetails._id)
+			: await Customer.create(clientDetails);
+
+		if (!customer) {
+			return res.status(404).json({
+				success: false,
+				message: 'Customer not found',
+			});
+		}
+
 		const quotation = await Quotation.create({
-			...req.body,
+			...quotationData,
 			createdBy: req.user._id,
+			clientDetails: {
+				...clientDetails,
+				_id: customer._id,
+			},
 		});
 
-		res.status(201).json({
+		return res.status(201).json({
 			success: true,
 			data: quotation,
 		});
 	} catch (error) {
-		res.status(400).json({
+		console.error(error);
+
+		return res.status(500).json({
 			success: false,
-			message: error.message,
+			message: error.message || 'Failed to create quotation',
 		});
 	}
 };
+
 
 /**
  * GET all quotations
@@ -78,10 +107,35 @@ export const getQuotationById = async (req, res) => {
  */
 export const updateQuotation = async (req, res) => {
 	try {
+		const { clientDetails, ...quotationData } = req.body;
+
+		if (!clientDetails) {
+			return res.status(400).json({
+				success: false,
+				message: 'Client details are required',
+			});
+		}
+
+		// Find or create customer
+		const customer = clientDetails._id
+			? await Customer.findById(clientDetails._id)
+			: await Customer.create(clientDetails);
+
+		if (!customer) {
+			return res.status(404).json({
+				success: false,
+				message: 'Customer not found',
+			});
+		}
 		const quotation = await Quotation.findOneAndUpdate(
 			{ _id: req.params.id, createdBy: req.user._id },
-			req.body,
-			{ new: true, runValidators: true }
+			{
+				...quotationData,
+				clientDetails: {
+					...clientDetails,
+					_id: customer._id,
+				}},
+			{ new: true, runValidators: true },
 		);
 
 		if (!quotation) {
