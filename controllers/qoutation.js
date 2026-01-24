@@ -18,7 +18,10 @@ export const createQuotation = async (req, res) => {
 		const random = Math.floor(Math.random() * 1000);
 		const timestamp = Date.now();
 		const customerData = {
-			...clientDetails,
+			address: clientDetails.address || '',
+			email: clientDetails.email || '',
+			phone: clientDetails.phone || '',
+			name: clientDetails.name || '',
 			customerId: `CUST-${timestamp}-${random}`,
 		};
 		// Find or create customer
@@ -122,7 +125,10 @@ export const updateQuotation = async (req, res) => {
 		const random = Math.floor(Math.random() * 1000);
 		const timestamp = Date.now();
 		const customerData = {
-			...clientDetails,
+			address: clientDetails.address || '',
+			email: clientDetails.email || '',
+			phone: clientDetails.phone || '',
+			name: clientDetails.name || '',
 			customerId: `CUST-${timestamp}-${random}`,
 		};
 		// Find or create customer
