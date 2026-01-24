@@ -15,11 +15,16 @@ export const createQuotation = async (req, res) => {
 			});
 		}
 
+		const random = Math.floor(Math.random() * 1000);
+		const timestamp = Date.now();
+		const customerData = {
+			...clientDetails,
+			customerId: `CUST-${timestamp}-${random}`,
+		};
 		// Find or create customer
 		const customer = clientDetails._id
 			? await Customer.findById(clientDetails._id)
-			: await Customer.create(clientDetails);
-
+			: await Customer.create(customerData);
 		if (!customer) {
 			return res.status(404).json({
 				success: false,
@@ -49,7 +54,6 @@ export const createQuotation = async (req, res) => {
 		});
 	}
 };
-
 
 /**
  * GET all quotations
@@ -115,11 +119,16 @@ export const updateQuotation = async (req, res) => {
 				message: 'Client details are required',
 			});
 		}
-
+		const random = Math.floor(Math.random() * 1000);
+		const timestamp = Date.now();
+		const customerData = {
+			...clientDetails,
+			customerId: `CUST-${timestamp}-${random}`,
+		};
 		// Find or create customer
 		const customer = clientDetails._id
 			? await Customer.findById(clientDetails._id)
-			: await Customer.create(clientDetails);
+			: await Customer.create(customerData);
 
 		if (!customer) {
 			return res.status(404).json({
@@ -134,7 +143,8 @@ export const updateQuotation = async (req, res) => {
 				clientDetails: {
 					...clientDetails,
 					_id: customer._id,
-				}},
+				},
+			},
 			{ new: true, runValidators: true },
 		);
 
