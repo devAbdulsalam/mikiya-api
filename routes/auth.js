@@ -150,7 +150,7 @@ router.post(
 				error: error.message,
 			});
 		}
-	}
+	},
 );
 
 // Login
@@ -281,7 +281,7 @@ router.post(
 
 			const isPasswordValid = await bcrypt.compare(
 				currentPassword,
-				user.password
+				user.password,
 			);
 			if (!isPasswordValid) {
 				return res.status(400).json({
@@ -317,7 +317,7 @@ router.post(
 				error: error.message,
 			});
 		}
-	}
+	},
 );
 
 // Forgot Password
@@ -340,10 +340,10 @@ router.post(
 
 			// // Generate reset token
 			const resetToken = crypto.randomBytes(32).toString('hex');
-			// const hashedToken = crypto
-			// 	.createHash('sha256')
-			// 	.update(resetToken)
-			// 	.digest('hex');
+			const hashedToken = crypto
+				.createHash('sha256')
+				.update(resetToken)
+				.digest('hex');
 
 			// // Save reset token
 			// await PasswordReset.create({
@@ -367,7 +367,7 @@ router.post(
 				error: error.message,
 			});
 		}
-	}
+	},
 );
 
 // Reset Password
@@ -439,7 +439,7 @@ router.post(
 				error: error.message,
 			});
 		}
-	}
+	},
 );
 
 // Get current user profile
@@ -528,7 +528,7 @@ router.put('/profile', auth, async (req, res) => {
 		const user = await User.findByIdAndUpdate(
 			req.user.id,
 			{ $set: updates },
-			{ new: true, runValidators: true }
+			{ new: true, runValidators: true },
 		).select('-password');
 
 		res.json({
@@ -562,7 +562,7 @@ router.put('/settings', auth, async (req, res) => {
 		const user = await User.findByIdAndUpdate(
 			req.user.id,
 			{ $set: updates },
-			{ new: true, runValidators: true }
+			{ new: true, runValidators: true },
 		).select('-password');
 
 		res.json({
