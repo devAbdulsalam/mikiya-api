@@ -2,6 +2,10 @@ import mongoose from 'mongoose';
 
 const paymentSchema = new mongoose.Schema(
 	{
+		outletId: {
+			type: mongoose.Schema.Types.ObjectId,
+			ref: 'Outlet',
+		},
 		invoiceId: {
 			type: mongoose.Schema.Types.ObjectId,
 			ref: 'Invoice',

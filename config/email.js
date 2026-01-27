@@ -18,7 +18,7 @@ const transporter = nodemailer.createTransport({
 export const sendEmail = async (to, subject, html) => {
 	try {
 		const mailOptions = {
-			from: `"Business Management System" <${process.env.EMAIL_FROM}>`,
+			from: `"Mikiya International Limited" <${process.env.EMAIL_FROM}>`,
 			to,
 			subject,
 			html,

@@ -419,6 +419,24 @@ export const updateInvoice = async (req, res) => {
 	}
 };
 
+
+export const updateInvoiceStatus = async (req, res) => {
+	try {
+		const { status } = req.body;
+		const invoice = await Invoice.findByIdAndUpdate(
+			req.params.id,
+			{ status },
+			{ new: true }
+		);
+		if (!invoice) {
+			return res.status(404).json({ error: 'Invoice not found' });
+		}
+		res.json({ message: 'Invoice status updated successfully', invoice });
+	} catch (error) {
+		res.status(500).json({ error: error.message });
+	}
+};
+
 export const deleteInvoice = async (req, res) => {
 	try {
 		const invoice = await Invoice.findById(req.params.id);

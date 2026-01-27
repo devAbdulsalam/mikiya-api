@@ -27,7 +27,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>Business Management System</h1>
+                    <h1>Mikiya International Limited</h1>
                 </div>
                 <div class="content">
                     <h2>Password Reset Request</h2>
@@ -37,7 +37,7 @@ export const sendPasswordResetEmail = async (email, resetToken) => {
                     <p>If you didn't request this, please ignore this email.</p>
                 </div>
                 <div class="footer">
-                    <p>&copy; ${new Date().getFullYear()} Business Management System. All rights reserved.</p>
+                    <p>&copy; ${new Date().getFullYear()} Mikiya International Limited. All rights reserved.</p>
                 </div>
             </div>
         </body>
@@ -72,7 +72,7 @@ export const sendAccountSuspendedEmail = async (email, reason) => {
                     <p>Please contact the system administrator if you believe this is a mistake.</p>
                 </div>
                 <div class="footer">
-                    <p>&copy; ${new Date().getFullYear()} Business Management System. All rights reserved.</p>
+                    <p>&copy; ${new Date().getFullYear()} Mikiya International Limited. All rights reserved.</p>
                 </div>
             </div>
         </body>
@@ -99,7 +99,7 @@ export const sendWelcomeEmail = async (email, username, temporaryPassword) => {
         <body>
             <div class="container">
                 <div class="header">
-                    <h1>Welcome to Business Management System</h1>
+                    <h1>Welcome to Mikiya International Limited</h1>
                 </div>
                 <div class="content">
                     <h2>Hello ${username}!</h2>
@@ -113,12 +113,12 @@ export const sendWelcomeEmail = async (email, username, temporaryPassword) => {
 										}/login">${process.env.FRONTEND_URL}/login</a></p>
                 </div>
                 <div class="footer">
-                    <p>&copy; ${new Date().getFullYear()} Business Management System. All rights reserved.</p>
+                    <p>&copy; ${new Date().getFullYear()} Mikiya International Limited. All rights reserved.</p>
                 </div>
             </div>
         </body>
         </html>
     `;
 
-	return await sendEmail(email, 'Welcome to Business Management System', html);
+	return await sendEmail(email, 'Welcome to Mikiya International Limited', html);
 };
