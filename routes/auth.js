@@ -328,15 +328,15 @@ router.post(
 		try {
 			const { email } = req.body;
 
-			// const user = await User.findOne({ email });
-			// if (!user) {
-			// 	// Don't reveal that user doesn't exist
-			// 	return res.json({
-			// 		success: true,
-			// 		message:
-			// 			'If an account exists with this email, you will receive a reset link',
-			// 	});
-			// }
+			const user = await User.findOne({ email });
+			if (!user) {
+				// Don't reveal that user doesn't exist
+				return res.json({
+					success: true,
+					message:
+						'If an account exists with this email, you will receive a reset link',
+				});
+			}
 
 			// // Generate reset token
 			const resetToken = crypto.randomBytes(32).toString('hex');
@@ -346,11 +346,11 @@ router.post(
 				.digest('hex');
 
 			// // Save reset token
-			// await PasswordReset.create({
-			// 	userId: user._id,
-			// 	token: hashedToken,
-			// 	expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
-			// });
+			await PasswordReset.create({
+				userId: user._id,
+				token: hashedToken,
+				expiresAt: new Date(Date.now() + 10 * 60 * 1000), // 10 minutes
+			});
 
 			// Send reset email
 			await sendPasswordResetEmail(email, resetToken);
